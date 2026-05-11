@@ -65,14 +65,13 @@ a collaborator that you can benefit from, and will make your work stronger.
 
 ### 3. Call the CLI
 
-`--reset` is side-effect-only: it deletes the named session file and exits without contacting Gemini. To start a fresh topic, call it once to reset, then again to send the prompt:
+Use `--reset` on the first call for a new topic. It deletes any existing session file with that name, then sends your prompt against a fresh conversation:
 
 ```bash
-ask-gemini --session <topic> --reset
-ask-gemini --session <topic> "Your well-formulated question here"
+ask-gemini --session <topic> --reset "Your well-formulated question here"
 ```
 
-For follow-up questions in the same consult (Gemini remembers the conversation):
+For follow-up questions in the same consult (Gemini remembers the conversation), drop `--reset`:
 
 ```bash
 ask-gemini --session <topic> "Follow-up question here"
@@ -81,13 +80,11 @@ ask-gemini --session <topic> "Follow-up question here"
 Attaching media:
 
 ```bash
-ask-gemini --session ui-bug --reset
-ask-gemini --session ui-bug \
+ask-gemini --session ui-bug --reset \
   --photo ./screenshot1.png --photo ./screenshot2.png \
   "What's wrong with the alignment in the second screenshot vs the first?"
 
-ask-gemini --session demo-review --reset
-ask-gemini --session demo-review \
+ask-gemini --session demo-review --reset \
   --video ./recording.mov \
   "Review this UX flow — where does the user appear confused?"
 ```

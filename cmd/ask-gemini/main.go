@@ -418,17 +418,6 @@ func main() {
 
 	convPath := sessionPath(*session)
 
-	// -reset is side-effect-only: delete the session file and exit without
-	// contacting the model or reading stdin. To reset and send in one go,
-	// invoke ask-gemini twice.
-	if *reset {
-		if err := os.Remove(convPath); err != nil && !os.IsNotExist(err) {
-			fmt.Fprintf(os.Stderr, "Error removing %s: %v\n", convPath, err)
-			os.Exit(1)
-		}
-		return
-	}
-
 	if *showHistory {
 		conv, err := loadConversation(convPath)
 		if err != nil {
@@ -475,7 +464,22 @@ func main() {
 		}
 	}
 
-	if prompt == "" && len(photos) == 0 && len(videos) == 0 && len(audios) == 0 {
+	hasInput := prompt != "" || len(photos) > 0 || len(videos) > 0 || len(audios) > 0
+
+	// -reset deletes the session file. If a prompt or attachment is also given,
+	// fall through and send it against a fresh session. If -reset is the only
+	// thing supplied, exit after deleting.
+	if *reset {
+		if err := os.Remove(convPath); err != nil && !os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "Error removing %s: %v\n", convPath, err)
+			os.Exit(1)
+		}
+		if !hasInput {
+			return
+		}
+	}
+
+	if !hasInput {
 		fmt.Fprintln(os.Stderr, "Usage: ask-gemini [flags] <prompt>")
 		fmt.Fprintln(os.Stderr, "       echo 'prompt' | ask-gemini [flags]")
 		flag.PrintDefaults()
