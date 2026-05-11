@@ -1,0 +1,14 @@
+# Built binary (when compiled at repo root)
+/ask-gemini
+/ask-gemini-skill
+
+# macOS
+.DS_Store
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# Bug reports should be filed as GitHub issues, not committed as txt files
+bug_report*.txt
