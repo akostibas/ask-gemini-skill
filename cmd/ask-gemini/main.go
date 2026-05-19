@@ -16,14 +16,19 @@ import (
 )
 
 const (
-	defaultModel       = "gemini-3.1-pro-preview"
-	apiBaseURL         = "https://generativelanguage.googleapis.com/v1beta/models"
-	uploadBaseURL      = "https://generativelanguage.googleapis.com/upload/v1beta/files"
-	fileBaseURL        = "https://generativelanguage.googleapis.com/v1beta"
+	defaultModel       = "gemini-3.5-flash"
 	sessionFilePrefix  = "ask-gemini-"
 	defaultSessionName = "default"
 	videoPollInterval  = 2 * time.Second
 	videoPollTimeout   = 5 * time.Minute
+)
+
+// API endpoints are vars (not consts) so tests can point them at a local
+// httptest server.
+var (
+	apiBaseURL    = "https://generativelanguage.googleapis.com/v1beta/models"
+	uploadBaseURL = "https://generativelanguage.googleapis.com/upload/v1beta/files"
+	fileBaseURL   = "https://generativelanguage.googleapis.com/v1beta"
 )
 
 // Gemini API types

@@ -1,13 +1,13 @@
 ---
 name: ask-gemini
-description: Get a second opinion from Gemini on thorny problems. Calls the Gemini 3.1 Pro API with conversation history for multi-turn consults.
+description: Get a second opinion from Gemini on thorny problems. Calls the Gemini 3.5 Flash API with conversation history for multi-turn consults.
 ---
 
 # Ask Gemini — Second Opinion Consult
 
 **Prereqs:** the `ask-gemini` binary is on `PATH` and either `GEMINI_API_KEY` or `ASK_GEMINI_KEY_COMMAND` is set in your environment. See the project README for installation and credential setup.
 
-Get a second opinion from Google's Gemini 3.1 Pro on a tricky problem. Useful for:
+Get a second opinion from Google's Gemini 3.5 Flash on a tricky problem. Useful for:
 - Debugging dead ends — describe what you've tried and what's failing
 - Architectural second opinions — "here are two approaches, which is better?"
 - Code review of a specific function or pattern
@@ -28,7 +28,7 @@ Flags:
 - `--reset` — start a fresh conversation (use on first call per consult topic)
 - `--photo <path>` — attach an image (repeatable). Uploaded via Gemini's File API and referenced by URI.
 - `--video <path>` — attach a video (repeatable). Uploaded via the File API; the CLI waits for processing to complete (`ACTIVE` state) before sending.
-- `--model <id>` — override model (default: `gemini-3.1-pro-preview`)
+- `--model <id>` — override model (default: `gemini-3.5-flash`)
 - `--system <prompt>` — custom system prompt (only used on first turn)
 - `--history` — show the current conversation and exit
 

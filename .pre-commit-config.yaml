@@ -1,0 +1,30 @@
+# Pre-commit hooks for ask-gemini. Local hooks only — no network needed to
+# install, and they use the repo's own Go toolchain.
+#
+# Setup:  pre-commit install
+# Run:    pre-commit run --all-files
+repos:
+  - repo: local
+    hooks:
+      - id: gofmt
+        name: gofmt
+        description: Check Go formatting
+        entry: gofmt -l -w
+        language: system
+        types: [go]
+
+      - id: go-vet
+        name: go vet
+        description: Report suspicious Go constructs
+        entry: go vet ./...
+        language: system
+        types: [go]
+        pass_filenames: false
+
+      - id: go-test
+        name: go test
+        description: Run the Go test suite
+        entry: go test ./...
+        language: system
+        types: [go]
+        pass_filenames: false
