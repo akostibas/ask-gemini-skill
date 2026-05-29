@@ -189,6 +189,36 @@ func TestStringSlice(t *testing.T) {
 	}
 }
 
+// --- Unit tests: prompt resolution ---
+
+func TestResolvePrompt(t *testing.T) {
+	tests := []struct {
+		name       string
+		args       []string
+		stdin      string
+		stdinPiped bool
+		want       string
+	}{
+		{"arg only", []string{"hello", "world"}, "", false, "hello world"},
+		{"stdin only", nil, "  piped body  ", true, "piped body"},
+		{"both concatenated", []string{"the question"}, "the payload", true, "the question\n\nthe payload"},
+		{"arg with empty piped stdin", []string{"q"}, "   ", true, "q"},
+		{"neither", nil, "", false, ""},
+		{"stdin present but not piped is ignored", nil, "ignored", false, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := resolvePrompt(tt.args, strings.NewReader(tt.stdin), tt.stdinPiped)
+			if err != nil {
+				t.Fatalf("resolvePrompt: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("resolvePrompt(%q, %q, %v) = %q, want %q", tt.args, tt.stdin, tt.stdinPiped, got, tt.want)
+			}
+		})
+	}
+}
+
 // --- HTTP-mocked integration tests: callGemini ---
 
 // withMockAPI swaps apiBaseURL for the duration of the test.

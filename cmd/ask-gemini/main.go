@@ -407,6 +407,30 @@ func callGemini(apiKey, model string, conversation *Conversation, systemPrompt s
 	return result.Candidates[0].Content.Parts[0].Text, nil
 }
 
+// resolvePrompt combines the positional-argument prompt with piped stdin.
+// When both are present, stdin is appended to the arg prompt so a framing
+// question in the arg and a payload on stdin both reach the model. stdin is
+// only read when stdinPiped is true.
+func resolvePrompt(args []string, stdin io.Reader, stdinPiped bool) (string, error) {
+	argPrompt := strings.TrimSpace(strings.Join(args, " "))
+	var stdinPrompt string
+	if stdinPiped {
+		data, err := io.ReadAll(stdin)
+		if err != nil {
+			return "", err
+		}
+		stdinPrompt = strings.TrimSpace(string(data))
+	}
+	switch {
+	case argPrompt != "" && stdinPrompt != "":
+		return argPrompt + "\n\n" + stdinPrompt, nil
+	case argPrompt != "":
+		return argPrompt, nil
+	default:
+		return stdinPrompt, nil
+	}
+}
+
 func main() {
 	model := flag.String("model", defaultModel, "Gemini model ID")
 	reset := flag.Bool("reset", false, "Reset conversation history")
@@ -452,21 +476,14 @@ func main() {
 		return
 	}
 
-	// Read prompt from args or stdin
-	var prompt string
-	if flag.NArg() > 0 {
-		prompt = strings.Join(flag.Args(), " ")
-	} else {
-		// Only read stdin if it's not a TTY (something is piped in)
-		stat, _ := os.Stdin.Stat()
-		if (stat.Mode() & os.ModeCharDevice) == 0 {
-			data, err := io.ReadAll(os.Stdin)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error reading stdin: %v\n", err)
-				os.Exit(1)
-			}
-			prompt = strings.TrimSpace(string(data))
-		}
+	// Read prompt from args and/or stdin. When both are present, stdin is
+	// appended to the arg prompt (the common "framing question + payload" case).
+	stat, _ := os.Stdin.Stat()
+	stdinPiped := (stat.Mode() & os.ModeCharDevice) == 0
+	prompt, err := resolvePrompt(flag.Args(), os.Stdin, stdinPiped)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading stdin: %v\n", err)
+		os.Exit(1)
 	}
 
 	hasInput := prompt != "" || len(photos) > 0 || len(videos) > 0 || len(audios) > 0

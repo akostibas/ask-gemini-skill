@@ -57,7 +57,12 @@ for the full skill instructions.
 ```
 ask-gemini [flags] <prompt>
 echo 'prompt' | ask-gemini [flags]
+echo 'payload' | ask-gemini [flags] <prompt>
 ```
+
+When both a positional prompt and piped stdin are given, the stdin body is
+appended to the arg prompt (separated by a blank line) — useful for putting a
+framing question in the arg and the payload on stdin.
 
 Flags:
 
