@@ -21,16 +21,21 @@ The tool is `ask-gemini`. It maintains conversation history across calls so you 
 ```
 ask-gemini [flags] <prompt>
 echo 'prompt' | ask-gemini [flags]
+echo 'payload' | ask-gemini [flags] <prompt>
 ```
+
+When both a positional prompt and piped stdin are given, stdin is appended to the arg prompt (separated by a blank line) — handy for putting a framing question in the arg and a long payload on stdin.
 
 Flags:
 - `--session <name>` — name the conversation; stored at `$TMPDIR/ask-gemini-<name>.json` (falls back to `/tmp` if unset). Always pass this from the skill so concurrent Claude sessions don't trample each other.
 - `--reset` — start a fresh conversation (use on first call per consult topic)
 - `--photo <path>` — attach an image (repeatable). Uploaded via Gemini's File API and referenced by URI.
 - `--video <path>` — attach a video (repeatable). Uploaded via the File API; the CLI waits for processing to complete (`ACTIVE` state) before sending.
+- `--audio <path>` — attach an audio file (repeatable). Uploaded via the File API; the CLI waits for `ACTIVE` state before sending.
 - `--model <id>` — override model (default: `gemini-3.5-flash`)
 - `--system <prompt>` — custom system prompt (only used on first turn)
 - `--history` — show the current conversation and exit
+- `--version` — print the binary version and exit
 
 Notes on attachments:
 - File API uploads are retained for 48 hours, so a `--session` consult can keep referencing them across turns without re-uploading.
@@ -117,7 +122,7 @@ Before filing, use `gh issue list -R akostibas/ask-gemini-skill --search "<keywo
 - **What happened** — stdout, stderr, exit code. Note especially silent / exit-0-with-no-output cases.
 - **What you expected.**
 - **Minimal repro** — the shortest sequence that reproduces it.
-- **Binary version** — `ls -la $(which ask-gemini)` (mtime is a usable proxy until releases are tagged).
+- **Binary version** — `ask-gemini --version` (or `ls -la $(which ask-gemini)` for the build mtime).
 
 File via:
 

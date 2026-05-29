@@ -11,9 +11,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 )
+
+// version is overridden at build time via
+// -ldflags "-X main.version=<tag>". Defaults to "dev" for `go run`/local builds.
+var version = "dev"
 
 const (
 	defaultModel       = "gemini-3.5-flash"
@@ -71,7 +76,8 @@ type GenerateResponse struct {
 }
 
 type Candidate struct {
-	Content Content `json:"content"`
+	Content      Content `json:"content"`
+	FinishReason string  `json:"finishReason,omitempty"`
 }
 
 type APIError struct {
@@ -400,11 +406,36 @@ func callGemini(apiKey, model string, conversation *Conversation, systemPrompt s
 		return "", fmt.Errorf("API error %d (%s): %s", result.Error.Code, result.Error.Status, result.Error.Message)
 	}
 
-	if len(result.Candidates) == 0 || len(result.Candidates[0].Content.Parts) == 0 {
+	if len(result.Candidates) == 0 {
 		return "", fmt.Errorf("empty response from Gemini\nraw: %s", string(respBody))
 	}
 
-	return result.Candidates[0].Content.Parts[0].Text, nil
+	cand := result.Candidates[0]
+	// STOP is the normal completion reason. Anything else (MAX_TOKENS, SAFETY,
+	// RECITATION, ...) means the output is truncated or was blocked — warn so a
+	// partial answer isn't mistaken for a complete one.
+	if cand.FinishReason != "" && cand.FinishReason != "STOP" {
+		fmt.Fprintf(os.Stderr, "Warning: Gemini stopped early (finishReason=%s); the response may be truncated or filtered.\n", cand.FinishReason)
+	}
+
+	if len(cand.Content.Parts) == 0 {
+		return "", fmt.Errorf("no content in Gemini response (finishReason=%q)\nraw: %s", cand.FinishReason, string(respBody))
+	}
+
+	return cand.Content.Parts[0].Text, nil
+}
+
+// resolveVersion reports the build version. A value injected via
+// -ldflags "-X main.version=..." wins; otherwise it falls back to the module
+// version Go embeds when installed with `go install ...@<tag>`.
+func resolveVersion() string {
+	if version != "dev" {
+		return version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return version
 }
 
 // resolvePrompt combines the positional-argument prompt with piped stdin.
@@ -436,6 +467,7 @@ func main() {
 	reset := flag.Bool("reset", false, "Reset conversation history")
 	system := flag.String("system", "", "System prompt (used on first message or after reset)")
 	showHistory := flag.Bool("history", false, "Show conversation history and exit")
+	showVersion := flag.Bool("version", false, "Print version and exit")
 	session := flag.String("session", "", "Session name; conversation stored at /tmp/ask-gemini-<name>.json")
 	var photos stringSlice
 	var videos stringSlice
@@ -444,6 +476,11 @@ func main() {
 	flag.Var(&videos, "video", "Path to a video to attach (repeatable)")
 	flag.Var(&audios, "audio", "Path to an audio file to attach (repeatable)")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(resolveVersion())
+		return
+	}
 
 	convPath := sessionPath(*session)
 

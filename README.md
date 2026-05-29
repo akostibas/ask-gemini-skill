@@ -12,7 +12,10 @@ go install github.com/akostibas/ask-gemini-skill/cmd/ask-gemini@latest
 ```
 
 This installs an `ask-gemini` binary into `$(go env GOPATH)/bin` — make sure
-that's on your `PATH`.
+that's on your `PATH`. Installing from a tagged version (e.g. `@v1.0.0`) lets
+`ask-gemini --version` report that tag; `@latest` off an untagged commit reports
+a pseudo-version. For local builds, inject a version with
+`go build -ldflags "-X main.version=$(git describe --tags --always --dirty)"`.
 
 ## Configure credentials
 
@@ -75,6 +78,7 @@ Flags:
 - `--model <id>` — override the model (default `gemini-3.5-flash`).
 - `--system <prompt>` — system prompt; only applied on the first turn.
 - `--history` — print the current conversation and exit.
+- `--version` — print the binary version and exit.
 
 File API uploads are retained by Google for ~48 hours, so a single
 `--session` consult can keep referencing attachments across turns without

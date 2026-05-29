@@ -314,6 +314,41 @@ func TestCallGeminiEmptyCandidates(t *testing.T) {
 	}
 }
 
+func TestCallGeminiTruncatedStillReturnsText(t *testing.T) {
+	withMockAPI(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(GenerateResponse{
+			Candidates: []Candidate{{
+				Content:      Content{Parts: []Part{{Text: "partial answer"}}},
+				FinishReason: "MAX_TOKENS",
+			}},
+		})
+	})
+	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
+	resp, err := callGemini("k", "m", conv, "")
+	if err != nil {
+		t.Fatalf("callGemini: %v", err)
+	}
+	if resp != "partial answer" {
+		t.Errorf("response = %q, want the partial text returned despite MAX_TOKENS", resp)
+	}
+}
+
+func TestCallGeminiBlockedEmptyParts(t *testing.T) {
+	withMockAPI(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(GenerateResponse{
+			Candidates: []Candidate{{FinishReason: "SAFETY"}},
+		})
+	})
+	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
+	_, err := callGemini("k", "m", conv, "")
+	if err == nil {
+		t.Fatal("expected error when candidate has no content parts, got nil")
+	}
+	if !strings.Contains(err.Error(), "SAFETY") {
+		t.Errorf("error %q should surface the finishReason", err)
+	}
+}
+
 func TestCallGeminiMalformedJSON(t *testing.T) {
 	withMockAPI(t, func(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "<html>not json</html>")

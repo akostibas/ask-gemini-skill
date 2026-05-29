@@ -36,7 +36,8 @@ fi
 bindir="$(mktemp -d)"
 trap 'rm -rf "$bindir"' EXIT
 echo "Building ask-gemini..."
-go build -o "$bindir/ask-gemini" ./cmd/ask-gemini
+ver="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
+go build -ldflags "-X main.version=$ver" -o "$bindir/ask-gemini" ./cmd/ask-gemini
 
 # --- Make the call against an isolated session ---
 
