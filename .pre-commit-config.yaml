@@ -1,9 +1,15 @@
-# Pre-commit hooks for ask-gemini. Local hooks only — no network needed to
-# install, and they use the repo's own Go toolchain.
+# Pre-commit hooks for ask-gemini.
 #
 # Setup:  pre-commit install
 # Run:    pre-commit run --all-files
 repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        name: gitleaks
+        description: Detect hardcoded secrets (e.g. a GEMINI_API_KEY)
+
   - repo: local
     hooks:
       - id: gofmt
