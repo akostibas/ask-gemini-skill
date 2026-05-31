@@ -7,15 +7,31 @@ that wraps it.
 
 ## Install
 
+From a tagged release:
+
 ```sh
 go install github.com/akostibas/ask-gemini-skill/cmd/ask-gemini@latest
 ```
 
-This installs an `ask-gemini` binary into `$(go env GOPATH)/bin` — make sure
-that's on your `PATH`. Installing from a tagged version (e.g. `@v1.0.0`) lets
-`ask-gemini --version` report that tag; `@latest` off an untagged commit reports
-a pseudo-version. For local builds, inject a version with
-`go build -ldflags "-X main.version=$(git describe --tags --always --dirty)"`.
+From a local clone (installs the binary *and* the Claude skill in one step):
+
+```sh
+make install
+```
+
+Both paths drop an `ask-gemini` binary into `$(go env GOBIN)`, falling back to
+`$(go env GOPATH)/bin` when `GOBIN` is unset — make sure that directory is on
+your `PATH`. `make install` additionally copies `skill/` into
+`~/.claude/skills/ask-gemini/`; override either location with `GOBIN=...` or
+`SKILL_DIR=...`.
+
+`make build` produces a local `./ask-gemini` binary without installing
+anything, handy for quick iteration.
+
+Installing from a tagged version (e.g. `@v1.0.0`) lets `ask-gemini --version`
+report that tag; `@latest` off an untagged commit reports a pseudo-version.
+`make build`/`make install` inject the version from `git describe` so local
+builds report something meaningful too.
 
 ## Configure credentials
 
@@ -45,7 +61,9 @@ export ASK_GEMINI_KEY_COMMAND='security find-generic-password -s gemini-api -w'
 
 ## Install the Claude skill
 
-Copy or symlink the skill file into your Claude skills directory:
+`make install` already places the skill at `~/.claude/skills/ask-gemini/`. If
+you installed via `go install` instead — or want the skill to track this
+working tree — symlink it:
 
 ```sh
 mkdir -p ~/.claude/skills/ask-gemini

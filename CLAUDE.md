@@ -8,6 +8,9 @@ skill (`skill/SKILL.md`) that wraps it.
 - `cmd/ask-gemini/` — the CLI (`main.go`, `main_test.go`).
 - `skill/SKILL.md` — the Claude Code skill instructions.
 - `bin/` — workflow scripts (`smoke-test.sh`, `release.sh`).
+- `Makefile` — `build` (local `./ask-gemini`), `install` (binary to `$GOBIN`
+  or `$GOPATH/bin` + skill to `~/.claude/skills/ask-gemini/`), `test`, `clean`.
+  Both build targets inject `main.version` from `git describe`.
 
 ## Testing
 
