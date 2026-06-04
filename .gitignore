@@ -2,6 +2,9 @@
 /ask-gemini
 /ask-gemini-skill
 
+# Eval harness scratch dirs (mktemp -d under the worktree)
+.run-synthesis-eval-*/
+
 # macOS
 .DS_Store
 
