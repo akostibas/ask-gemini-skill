@@ -438,19 +438,57 @@ func resolveVersion() string {
 	return version
 }
 
+// stdinAppendTimeout bounds how long we wait for an optional stdin payload when
+// a positional prompt is also present. It only ever elapses for a stdin that is
+// open but never reaches EOF (e.g. a parent process — like an agent's shell —
+// that hands us an inherited pipe with no data and never closes it). A normal
+// `echo … | ask-gemini "q"` reaches EOF and returns well under this.
+const stdinAppendTimeout = 1 * time.Second
+
+// readAllWithTimeout reads r to EOF, but gives up after d. ok is false on
+// timeout or read error — the caller treats that as "no payload".
+func readAllWithTimeout(r io.Reader, d time.Duration) (data []byte, ok bool) {
+	type result struct {
+		data []byte
+		err  error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		b, err := io.ReadAll(r)
+		ch <- result{b, err}
+	}()
+	select {
+	case res := <-ch:
+		return res.data, res.err == nil
+	case <-time.After(d):
+		return nil, false
+	}
+}
+
 // resolvePrompt combines the positional-argument prompt with piped stdin.
 // When both are present, stdin is appended to the arg prompt so a framing
 // question in the arg and a payload on stdin both reach the model. stdin is
 // only read when stdinPiped is true.
+//
+// With a positional prompt present, stdin is an OPTIONAL payload, so its read is
+// time-bounded: an inherited-but-idle stdin (e.g. an agent invoking us via its
+// shell, leaving a pipe open with no data and no EOF) must not hang us forever.
+// With no positional prompt, stdin IS the prompt, so we block until EOF.
 func resolvePrompt(args []string, stdin io.Reader, stdinPiped bool) (string, error) {
 	argPrompt := strings.TrimSpace(strings.Join(args, " "))
 	var stdinPrompt string
 	if stdinPiped {
-		data, err := io.ReadAll(stdin)
-		if err != nil {
-			return "", err
+		if argPrompt != "" {
+			if data, ok := readAllWithTimeout(stdin, stdinAppendTimeout); ok {
+				stdinPrompt = strings.TrimSpace(string(data))
+			}
+		} else {
+			data, err := io.ReadAll(stdin)
+			if err != nil {
+				return "", err
+			}
+			stdinPrompt = strings.TrimSpace(string(data))
 		}
-		stdinPrompt = strings.TrimSpace(string(data))
 	}
 	switch {
 	case argPrompt != "" && stdinPrompt != "":

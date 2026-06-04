@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // --- Unit tests: session paths ---
@@ -216,6 +217,37 @@ func TestResolvePrompt(t *testing.T) {
 				t.Errorf("resolvePrompt(%q, %q, %v) = %q, want %q", tt.args, tt.stdin, tt.stdinPiped, got, tt.want)
 			}
 		})
+	}
+}
+
+// blockingReader never returns from Read, simulating a stdin pipe that is open
+// but never receives data or EOF — as when an agent invokes us via its shell and
+// hands down an inherited, idle pipe. Regression guard for the hang fixed by
+// time-bounding the optional stdin read in resolvePrompt.
+type blockingReader struct{}
+
+func (blockingReader) Read([]byte) (int, error) { select {} }
+
+func TestResolvePromptDoesNotHangOnIdleStdin(t *testing.T) {
+	type res struct {
+		got string
+		err error
+	}
+	ch := make(chan res, 1)
+	go func() {
+		got, err := resolvePrompt([]string{"q"}, blockingReader{}, true)
+		ch <- res{got, err}
+	}()
+	select {
+	case r := <-ch:
+		if r.err != nil {
+			t.Fatalf("resolvePrompt: %v", r.err)
+		}
+		if r.got != "q" {
+			t.Errorf("got %q, want %q (arg should be used when stdin yields no payload)", r.got, "q")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("resolvePrompt hung on an idle, never-EOF stdin with a positional prompt present")
 	}
 }
 
