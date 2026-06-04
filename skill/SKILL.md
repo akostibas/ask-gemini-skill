@@ -98,7 +98,13 @@ You can also pipe longer prompts via stdin if the question is too long for a she
 
 ### 4. Relay the response
 
-Read Gemini's response and present it to the user with your own analysis:
+The user has **not seen the prompt you sent to Gemini** — only your synthesis. Treat Gemini's response as raw input that needs to be re-framed for someone with no prior context:
+
+- Don't reference labels, option letters, or section names from your prompt without restating what they mean.
+- Restate the question and the options being weighed before giving the recommendation.
+- Make the synthesis self-contained: a reader should understand the conclusion without seeing either your prompt or Gemini's full reply.
+
+Then add your own analysis on top:
 - Where you agree or disagree with Gemini's take
 - How Gemini's suggestion relates to the current codebase
 - Whether you'd recommend acting on the advice
