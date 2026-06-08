@@ -34,6 +34,13 @@ CLONE_URL="https://github.com/${REPO}.git"
 
 die() { echo "${SKILL_NAME} update: $*" >&2; exit 1; }
 
+# Required tools, checked up front so we fail early and clearly rather than
+# part-way through (git is needed to clone, go to rebuild the binary).
+need() { command -v "$1" >/dev/null 2>&1 || die "$1 not found — $2"; }
+need curl "install curl and retry"
+need git "install git and retry"
+need go "install the Go toolchain (https://go.dev/dl) and retry"
+
 assume_yes=false
 [[ "${1:-}" == "--yes" || "${1:-}" == "-y" ]] && assume_yes=true
 
@@ -47,7 +54,6 @@ if [[ -n "$BIN" ]] && command -v "$BIN" >/dev/null 2>&1; then
 fi
 
 # Latest release tag from GitHub. jq if present, else a tag_name grep.
-command -v curl >/dev/null 2>&1 || die "curl not found"
 release_json="$(curl -fsSL -H "Accept: application/vnd.github+json" "$API_URL" 2>/dev/null)" \
   || die "could not reach GitHub (offline or rate-limited)"
 if command -v jq >/dev/null 2>&1; then
