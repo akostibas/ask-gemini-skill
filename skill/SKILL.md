@@ -115,6 +115,29 @@ Do NOT just parrot back the response — add value by synthesizing both perspect
 
 If the user wants to dig deeper, send follow-up questions on the same `--session` (without `--reset`) to continue the conversation with Gemini.
 
+## Keeping the skill up to date
+
+`ask-gemini` checks GitHub for a newer release at most once a day (cached in the
+system temp dir) and prints a one-line notice to **stderr** when one exists, e.g.:
+
+```
+ask-gemini: update available v0.2.0 → v0.3.0. Run this skill's update.sh to upgrade (suppress with ASK_GEMINI_NO_UPDATE_CHECK=1).
+```
+
+When you see that notice, tell the user a newer version is available and offer to
+upgrade — don't upgrade silently. The updater lives next to this file:
+
+```bash
+"$(dirname SKILL.md)/update.sh"          # preview: prints current → latest, then stops
+"$(dirname SKILL.md)/update.sh" --yes    # apply after the user agrees
+```
+
+`update.sh` installs the new binary and skill to wherever *this* skill is
+installed (so a project-level `.claude` install upgrades in place), cloning into
+the system temp dir and cleaning up after itself. It needs `git`, `curl`, and the
+Go toolchain. The check makes an unauthenticated GitHub API call, which reveals
+the user's IP to GitHub; set `ASK_GEMINI_NO_UPDATE_CHECK=1` to disable it.
+
 ## Reporting bugs or requesting features
 
 If `ask-gemini` misbehaves (silent failures, confusing errors, missing flags, wrong-looking output) or the skill instructions are unclear, **open a GitHub issue** at:

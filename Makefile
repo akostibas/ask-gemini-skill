@@ -18,6 +18,7 @@ install:
 	rm -rf "$(SKILL_DIR)"
 	mkdir -p "$(SKILL_DIR)"
 	cp -R skill/. "$(SKILL_DIR)/"
+	chmod +x "$(SKILL_DIR)"/*.sh
 	@echo "Installed skill   -> $(SKILL_DIR)"
 
 test:

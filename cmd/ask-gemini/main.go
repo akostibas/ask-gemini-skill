@@ -583,6 +583,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	// On a real consult, nudge (to stderr) if a newer release exists. Throttled
+	// to one network check per day; silent on any failure.
+	maybeNotifyUpdate(resolveVersion(), os.Stderr)
+
 	// Load or create conversation
 	conv, err := loadConversation(convPath)
 	if err != nil {

@@ -5,8 +5,12 @@ skill (`skill/SKILL.md`) that wraps it.
 
 ## Layout
 
-- `cmd/ask-gemini/` — the CLI (`main.go`, `main_test.go`).
+- `cmd/ask-gemini/` — the CLI (`main.go`, `main_test.go`; update-check in
+  `updatecheck.go`).
 - `skill/SKILL.md` — the Claude Code skill instructions.
+- `skill/update.sh` — portable self-update: clones the latest release tag into
+  `$TMPDIR` and reinstalls binary + skill in place. The binary nudges (stderr,
+  once/day) when behind; suppress with `ASK_GEMINI_NO_UPDATE_CHECK=1`.
 - `bin/` — workflow scripts (`smoke-test.sh`, `release.sh`).
 - `Makefile` — `build` (local `./ask-gemini`), `install` (binary to `$GOBIN`
   or `$GOPATH/bin` + skill to `~/.claude/skills/ask-gemini/`), `test`, `clean`.

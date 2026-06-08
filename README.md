@@ -72,6 +72,26 @@ Flags:
 File API uploads are retained by Google for ~48 hours, so a single `--session`
 can keep referencing attachments across turns without re-uploading.
 
+## Staying up to date
+
+On a real consult, `ask-gemini` checks GitHub for a newer release — at most once
+a day, cached to the system temp dir — and prints a one-line notice to stderr if
+you're behind. All failures (offline, rate-limited) are silent. To upgrade, run
+the skill's `update.sh`, which clones the latest tag into the system temp dir and
+reinstalls the binary and skill in place:
+
+```sh
+~/.claude/skills/ask-gemini/update.sh         # preview current → latest
+~/.claude/skills/ask-gemini/update.sh --yes    # apply
+```
+
+It needs `git`, `curl`, and the Go toolchain. You can also just re-run
+`make install` from a fresh clone, or `go install ...@latest` for the binary
+alone.
+
+**Privacy:** the update check is an unauthenticated GitHub API call, which
+reveals your IP to GitHub. Set `ASK_GEMINI_NO_UPDATE_CHECK=1` to disable it.
+
 ## Bugs and feature requests
 
 Open an issue at https://github.com/akostibas/ask-gemini-skill/issues. Include
