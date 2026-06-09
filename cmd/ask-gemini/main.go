@@ -410,7 +410,11 @@ func callGemini(apiKey, model string, conversation *Conversation, systemPrompt s
 	}
 
 	if result.Error != nil {
-		return "", fmt.Errorf("API error %d (%s): %s", result.Error.Code, result.Error.Status, result.Error.Message)
+		msg := fmt.Sprintf("API error %d (%s): %s", result.Error.Code, result.Error.Status, result.Error.Message)
+		if result.Error.Code == 503 && len(tools) > 0 {
+			msg += "\n(503 with grounding tools active can mean Google's fetcher refused or timed out on a URL — try --no-url-context if you passed one)"
+		}
+		return "", fmt.Errorf("%s", msg)
 	}
 
 	if len(result.Candidates) == 0 {
