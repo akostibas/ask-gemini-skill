@@ -364,7 +364,7 @@ func callGemini(apiKey, model string, conversation *Conversation, systemPrompt s
 	req := GenerateRequest{
 		Contents: conversation.Messages,
 		GenerationConfig: GenerationConfig{
-			MaxOutputTokens: 8192,
+			MaxOutputTokens: 32768,
 		},
 	}
 
