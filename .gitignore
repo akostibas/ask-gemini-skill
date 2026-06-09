@@ -1,5 +1,9 @@
 # Built binary (when compiled at repo root)
 /ask-gemini
+/ask-gemini-test
+
+# Worktrees and Claude session data
+.claude/
 /ask-gemini-skill
 
 # Eval harness scratch dirs (mktemp -d under the worktree)
