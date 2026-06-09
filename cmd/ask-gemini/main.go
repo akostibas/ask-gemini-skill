@@ -514,8 +514,8 @@ func main() {
 	showHistory := flag.Bool("history", false, "Show conversation history and exit")
 	showVersion := flag.Bool("version", false, "Print version and exit")
 	session := flag.String("session", "", "Session name; conversation stored at /tmp/ask-gemini-<name>.json")
-	useSearch := flag.Bool("search", false, "Enable Google Search grounding")
-	useURLContext := flag.Bool("url-context", false, "Enable URL context (fetch live web pages)")
+	noSearch := flag.Bool("no-search", false, "Disable Google Search grounding (enabled by default)")
+	noURLContext := flag.Bool("no-url-context", false, "Disable URL context fetching (enabled by default)")
 	var photos stringSlice
 	var videos stringSlice
 	var audios stringSlice
@@ -659,12 +659,12 @@ func main() {
 			"edge cases, and non-obvious issues. If you disagree with an approach, say so clearly."
 	}
 
-	// Build tools list from flags
+	// Build tools list — both enabled by default, opt-out via flags
 	var tools []Tool
-	if *useSearch {
+	if !*noSearch {
 		tools = append(tools, Tool{GoogleSearch: &struct{}{}})
 	}
-	if *useURLContext {
+	if !*noURLContext {
 		tools = append(tools, Tool{URLContext: &struct{}{}})
 	}
 
