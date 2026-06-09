@@ -32,6 +32,8 @@ Flags:
 - `--photo <path>` — attach an image (repeatable). Uploaded via Gemini's File API and referenced by URI.
 - `--video <path>` — attach a video (repeatable). Uploaded via the File API; the CLI waits for processing to complete (`ACTIVE` state) before sending.
 - `--audio <path>` — attach an audio file (repeatable). Uploaded via the File API; the CLI waits for `ACTIVE` state before sending.
+- `--search` — enable Google Search grounding (Gemini fetches live search results)
+- `--url-context` — enable URL context (Gemini fetches and reads URLs mentioned in the prompt)
 - `--model <id>` — override model (default: `gemini-3.5-flash`)
 - `--system <prompt>` — custom system prompt (only used on first turn)
 - `--history` — show the current conversation and exit

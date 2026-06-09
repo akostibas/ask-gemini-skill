@@ -283,7 +283,7 @@ func TestCallGeminiSuccess(t *testing.T) {
 	conv := &Conversation{Messages: []Content{
 		{Role: "user", Parts: []Part{{Text: "the question"}}},
 	}}
-	resp, err := callGemini("test-key", "gemini-3.5-flash", conv, "be terse")
+	resp, err := callGemini("test-key", "gemini-3.5-flash", conv, "be terse", nil)
 	if err != nil {
 		t.Fatalf("callGemini: %v", err)
 	}
@@ -311,7 +311,7 @@ func TestCallGeminiNoSystemPrompt(t *testing.T) {
 		})
 	})
 	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
-	if _, err := callGemini("k", "m", conv, ""); err != nil {
+	if _, err := callGemini("k", "m", conv, "", nil); err != nil {
 		t.Fatalf("callGemini: %v", err)
 	}
 	if gotReq.SystemInstruction != nil {
@@ -327,7 +327,7 @@ func TestCallGeminiAPIError(t *testing.T) {
 		})
 	})
 	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
-	_, err := callGemini("k", "bogus-model", conv, "")
+	_, err := callGemini("k", "bogus-model", conv, "", nil)
 	if err == nil {
 		t.Fatal("expected error for API error response, got nil")
 	}
@@ -341,7 +341,7 @@ func TestCallGeminiEmptyCandidates(t *testing.T) {
 		json.NewEncoder(w).Encode(GenerateResponse{Candidates: nil})
 	})
 	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
-	if _, err := callGemini("k", "m", conv, ""); err == nil {
+	if _, err := callGemini("k", "m", conv, "", nil); err == nil {
 		t.Error("expected error for empty candidates, got nil")
 	}
 }
@@ -356,7 +356,7 @@ func TestCallGeminiTruncatedStillReturnsText(t *testing.T) {
 		})
 	})
 	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
-	resp, err := callGemini("k", "m", conv, "")
+	resp, err := callGemini("k", "m", conv, "", nil)
 	if err != nil {
 		t.Fatalf("callGemini: %v", err)
 	}
@@ -372,7 +372,7 @@ func TestCallGeminiBlockedEmptyParts(t *testing.T) {
 		})
 	})
 	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
-	_, err := callGemini("k", "m", conv, "")
+	_, err := callGemini("k", "m", conv, "", nil)
 	if err == nil {
 		t.Fatal("expected error when candidate has no content parts, got nil")
 	}
@@ -386,7 +386,52 @@ func TestCallGeminiMalformedJSON(t *testing.T) {
 		io.WriteString(w, "<html>not json</html>")
 	})
 	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
-	if _, err := callGemini("k", "m", conv, ""); err == nil {
+	if _, err := callGemini("k", "m", conv, "", nil); err == nil {
 		t.Error("expected error for malformed response body, got nil")
+	}
+}
+
+func TestCallGeminiToolsForwarded(t *testing.T) {
+	var gotReq GenerateRequest
+	withMockAPI(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &gotReq)
+		json.NewEncoder(w).Encode(GenerateResponse{
+			Candidates: []Candidate{{Content: Content{Parts: []Part{{Text: "ok"}}}}},
+		})
+	})
+	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
+	tools := []Tool{
+		{GoogleSearch: &struct{}{}},
+		{URLContext: &struct{}{}},
+	}
+	if _, err := callGemini("k", "m", conv, "", tools); err != nil {
+		t.Fatalf("callGemini: %v", err)
+	}
+	if len(gotReq.Tools) != 2 {
+		t.Fatalf("expected 2 tools in request, got %d: %+v", len(gotReq.Tools), gotReq.Tools)
+	}
+	if gotReq.Tools[0].GoogleSearch == nil {
+		t.Error("expected first tool to be google_search")
+	}
+	if gotReq.Tools[1].URLContext == nil {
+		t.Error("expected second tool to be url_context")
+	}
+}
+
+func TestCallGeminiNoToolsOmitted(t *testing.T) {
+	var gotBody []byte
+	withMockAPI(t, func(w http.ResponseWriter, r *http.Request) {
+		gotBody, _ = io.ReadAll(r.Body)
+		json.NewEncoder(w).Encode(GenerateResponse{
+			Candidates: []Candidate{{Content: Content{Parts: []Part{{Text: "ok"}}}}},
+		})
+	})
+	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
+	if _, err := callGemini("k", "m", conv, "", nil); err != nil {
+		t.Fatalf("callGemini: %v", err)
+	}
+	if strings.Contains(string(gotBody), `"tools"`) {
+		t.Error("tools field should be omitted from request when no tools are specified")
 	}
 }

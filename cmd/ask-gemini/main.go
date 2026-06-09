@@ -59,10 +59,16 @@ type FileData struct {
 	FileURI  string `json:"fileUri"`
 }
 
+type Tool struct {
+	GoogleSearch *struct{} `json:"google_search,omitempty"`
+	URLContext   *struct{} `json:"url_context,omitempty"`
+}
+
 type GenerateRequest struct {
 	Contents          []Content        `json:"contents"`
 	SystemInstruction *Content         `json:"systemInstruction,omitempty"`
 	GenerationConfig  GenerationConfig `json:"generationConfig,omitempty"`
+	Tools             []Tool           `json:"tools,omitempty"`
 }
 
 type GenerationConfig struct {
@@ -358,7 +364,7 @@ func attachFiles(apiKey string, paths []string, requireActive bool) ([]Part, err
 	return parts, nil
 }
 
-func callGemini(apiKey, model string, conversation *Conversation, systemPrompt string) (string, error) {
+func callGemini(apiKey, model string, conversation *Conversation, systemPrompt string, tools []Tool) (string, error) {
 	url := fmt.Sprintf("%s/%s:generateContent?key=%s", apiBaseURL, model, apiKey)
 
 	req := GenerateRequest{
@@ -366,6 +372,7 @@ func callGemini(apiKey, model string, conversation *Conversation, systemPrompt s
 		GenerationConfig: GenerationConfig{
 			MaxOutputTokens: 32768,
 		},
+		Tools: tools,
 	}
 
 	if systemPrompt != "" {
@@ -507,6 +514,8 @@ func main() {
 	showHistory := flag.Bool("history", false, "Show conversation history and exit")
 	showVersion := flag.Bool("version", false, "Print version and exit")
 	session := flag.String("session", "", "Session name; conversation stored at /tmp/ask-gemini-<name>.json")
+	useSearch := flag.Bool("search", false, "Enable Google Search grounding")
+	useURLContext := flag.Bool("url-context", false, "Enable URL context (fetch live web pages)")
 	var photos stringSlice
 	var videos stringSlice
 	var audios stringSlice
@@ -650,8 +659,17 @@ func main() {
 			"edge cases, and non-obvious issues. If you disagree with an approach, say so clearly."
 	}
 
+	// Build tools list from flags
+	var tools []Tool
+	if *useSearch {
+		tools = append(tools, Tool{GoogleSearch: &struct{}{}})
+	}
+	if *useURLContext {
+		tools = append(tools, Tool{URLContext: &struct{}{}})
+	}
+
 	// Call Gemini
-	response, err := callGemini(apiKey, conv.Model, conv, systemPrompt)
+	response, err := callGemini(apiKey, conv.Model, conv, systemPrompt, tools)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
