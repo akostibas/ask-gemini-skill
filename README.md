@@ -64,7 +64,7 @@ Flags:
 - `--photo <path>` — attach an image (repeatable).
 - `--video <path>` — attach a video (repeatable). Waits for File API processing.
 - `--audio <path>` — attach an audio file (repeatable).
-- `--model <id>` — override the model (default `gemini-3.5-flash`).
+- `--model <id>` — override the model (default `gemini-3.6-flash`).
 - `--system <prompt>` — system prompt; only applied on the first turn.
 - `--history` — print the current conversation and exit.
 - `--version` — print the binary version and exit.
