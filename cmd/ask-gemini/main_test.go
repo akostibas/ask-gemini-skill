@@ -43,7 +43,7 @@ func TestSessionPath(t *testing.T) {
 func TestSaveLoadConversationRoundtrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "conv.json")
 	want := &Conversation{
-		Model:     "gemini-3.5-flash",
+		Model:     "gemini-3.6-flash",
 		StartedAt: "2026-05-19T00:00:00Z",
 		Messages: []Content{
 			{Role: "user", Parts: []Part{{Text: "hello"}}},
@@ -283,14 +283,14 @@ func TestCallGeminiSuccess(t *testing.T) {
 	conv := &Conversation{Messages: []Content{
 		{Role: "user", Parts: []Part{{Text: "the question"}}},
 	}}
-	resp, err := callGemini("test-key", "gemini-3.5-flash", conv, "be terse", nil)
+	resp, err := callGemini("test-key", "gemini-3.6-flash", conv, "be terse", nil)
 	if err != nil {
 		t.Fatalf("callGemini: %v", err)
 	}
 	if resp != "the answer" {
 		t.Errorf("response = %q, want %q", resp, "the answer")
 	}
-	if !strings.Contains(gotPath, "gemini-3.5-flash:generateContent") {
+	if !strings.Contains(gotPath, "gemini-3.6-flash:generateContent") {
 		t.Errorf("request path = %q, want it to include the model and method", gotPath)
 	}
 	if gotReq.SystemInstruction == nil || gotReq.SystemInstruction.Parts[0].Text != "be terse" {

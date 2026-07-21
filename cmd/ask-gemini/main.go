@@ -21,7 +21,7 @@ import (
 var version = "dev"
 
 const (
-	defaultModel       = "gemini-3.5-flash"
+	defaultModel       = "gemini-3.6-flash"
 	sessionFilePrefix  = "ask-gemini-"
 	defaultSessionName = "default"
 	videoPollInterval  = 2 * time.Second
