@@ -33,8 +33,11 @@ minor.
 
 Cut releases with `bin/release.sh <version|patch|minor|major>`. It refuses on a
 dirty tree, wrong branch, out-of-sync `main`, an existing tag, or failing tests,
-then tags, pushes, and creates a GitHub release. Never tag by hand — the script
-is the gate that guarantees tests passed against the published commit.
+then runs the live smoke test, tags, pushes, and creates a GitHub release. Never
+tag by hand — the script is the gate that guarantees tests passed against the
+published commit. The smoke test needs `GEMINI_API_KEY` (or
+`ASK_GEMINI_KEY_COMMAND`) and makes one billable call; pass `--no-smoke` to skip
+it (no credentials handy, or a docs-only bump).
 
 `ask-gemini --version` reports the build version (injected via `-ldflags
 -X main.version`, with a fallback to Go's embedded module version for
