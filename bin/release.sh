@@ -13,9 +13,14 @@
 #   bin/release.sh minor         # bump x.Y.0
 #   bin/release.sh major         # bump X.0.0
 #
+# By default a release runs the live smoke test (bin/smoke-test.sh) after the
+# unit tests, so a bad model ID or request shape can't ship. It makes one
+# billable API call and needs GEMINI_API_KEY or ASK_GEMINI_KEY_COMMAND set.
+# Pass --no-smoke to skip it (e.g. no credentials handy, or a docs-only bump).
+#
 # See ../CLAUDE.md for what counts as a patch/minor/major change.
 #
-# Exit codes: 0 = released, 1 = precondition failure, 2 = tests failed.
+# Exit codes: 0 = released, 1 = precondition failure, 2 = tests/smoke failed.
 
 set -euo pipefail
 
@@ -24,6 +29,27 @@ cd "$repo_root"
 
 release_branch="main"
 
+# --- Parse arguments (one positional version + optional flags) ---
+
+run_smoke=1
+version_arg=""
+for arg in "$@"; do
+  case "$arg" in
+    --no-smoke) run_smoke=0 ;;
+    -*)
+      echo "FAIL: unknown flag '$arg'. Supported: --no-smoke." >&2
+      exit 1
+      ;;
+    *)
+      if [[ -n "$version_arg" ]]; then
+        echo "FAIL: expected a single version (v0.2.0, or patch/minor/major); got '$version_arg' and '$arg'." >&2
+        exit 1
+      fi
+      version_arg="$arg"
+      ;;
+  esac
+done
+
 # --- Report current state before doing anything ---
 
 current_branch="$(git rev-parse --abbrev-ref HEAD)"
@@ -31,8 +57,8 @@ latest_tag="$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")"
 echo "Branch:     $current_branch"
 echo "Latest tag: $latest_tag"
 
-if [[ $# -ne 1 ]]; then
-  echo "FAIL: expected exactly one argument (a version like v0.2.0, or patch/minor/major)." >&2
+if [[ -z "$version_arg" ]]; then
+  echo "FAIL: expected a version argument (a version like v0.2.0, or patch/minor/major)." >&2
   exit 1
 fi
 
@@ -49,9 +75,9 @@ bump() {
   esac
 }
 
-case "$1" in
-  major | minor | patch) version="$(bump "$1")" ;;
-  *) version="$1" ;;
+case "$version_arg" in
+  major | minor | patch) version="$(bump "$version_arg")" ;;
+  *) version="$version_arg" ;;
 esac
 
 if [[ ! "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -94,6 +120,17 @@ echo "Running go test..."
 if ! go test ./...; then
   echo "FAIL: tests failed; not releasing." >&2
   exit 2
+fi
+
+if [[ "$run_smoke" -eq 1 ]]; then
+  echo "Running live smoke test (bin/smoke-test.sh)..."
+  if ! bin/smoke-test.sh; then
+    echo "FAIL: smoke test failed; not releasing." >&2
+    echo "      Fix the issue, or pass --no-smoke to skip (e.g. no credentials)." >&2
+    exit 2
+  fi
+else
+  echo "Skipping smoke test (--no-smoke)."
 fi
 
 # --- Tag and push ---
