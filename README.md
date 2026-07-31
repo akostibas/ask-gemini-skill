@@ -73,6 +73,23 @@ Flags:
 File API uploads are retained by Google for ~48 hours, so a single `--session`
 can keep referencing attachments across turns without re-uploading.
 
+### Usage and cost
+
+After every request, a token-usage line and an estimated cost print to
+**stderr** (so they never mix into the answer on stdout):
+
+```
+usage: 54 in + 74 out (73 thinking) = 128 tokens
+est. cost: ~$0.000636 (gemini-3.6-flash, prices as of 2026-07)
+```
+
+The token counts come straight from the API and are exact; "thinking" is hidden
+reasoning tokens (billed at the output rate). The dollar figure is an **estimate**
+from a small price table baked into the tool (`cmd/ask-gemini/pricing.go`) — it
+can drift when Google changes prices, so it's stamped with the date it was last
+verified. A model with no entry in that table still prints tokens, with
+`cost: unknown`. Silence the whole line with `ASK_GEMINI_NO_USAGE=1`.
+
 ### Generating images (Nano Banana)
 
 Pass `--out <path>` to generate an image instead of text:

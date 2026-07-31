@@ -83,8 +83,19 @@ type GenerationConfig struct {
 }
 
 type GenerateResponse struct {
-	Candidates []Candidate `json:"candidates"`
-	Error      *APIError   `json:"error,omitempty"`
+	Candidates    []Candidate    `json:"candidates"`
+	UsageMetadata *UsageMetadata `json:"usageMetadata,omitempty"`
+	Error         *APIError      `json:"error,omitempty"`
+}
+
+type UsageMetadata struct {
+	PromptTokenCount     int `json:"promptTokenCount"`
+	CandidatesTokenCount int `json:"candidatesTokenCount"`
+	// ThoughtsTokenCount is the hidden reasoning ("thinking") tokens on
+	// thinking models. They're billed at the output rate and are part of
+	// TotalTokenCount but not CandidatesTokenCount.
+	ThoughtsTokenCount int `json:"thoughtsTokenCount"`
+	TotalTokenCount    int `json:"totalTokenCount"`
 }
 
 type Candidate struct {
@@ -126,6 +137,7 @@ type Conversation struct {
 type geminiResult struct {
 	text   string
 	images []InlineData
+	usage  usage
 }
 
 // isImageModel reports whether a model ID produces images. Every Gemini image
@@ -469,6 +481,14 @@ func callGemini(apiKey, model string, conversation *Conversation, systemPrompt s
 			res.text += p.Text
 		case p.InlineData != nil && strings.HasPrefix(p.InlineData.MimeType, "image/"):
 			res.images = append(res.images, *p.InlineData)
+		}
+	}
+	if m := result.UsageMetadata; m != nil {
+		res.usage = usage{
+			promptTokens:   m.PromptTokenCount,
+			outputTokens:   m.CandidatesTokenCount,
+			thinkingTokens: m.ThoughtsTokenCount,
+			totalTokens:    m.TotalTokenCount,
 		}
 	}
 
@@ -858,5 +878,10 @@ func main() {
 	// Output any text response.
 	if res.text != "" {
 		fmt.Println(res.text)
+	}
+
+	// Report token usage and estimated cost to stderr, unless suppressed.
+	if os.Getenv("ASK_GEMINI_NO_USAGE") == "" {
+		fmt.Fprintln(os.Stderr, formatUsage(resolvedModel, res.usage, len(res.images)))
 	}
 }

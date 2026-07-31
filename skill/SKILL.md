@@ -44,6 +44,9 @@ Notes on attachments:
 - File API uploads are retained for 48 hours, so a `--session` consult can keep referencing them across turns without re-uploading.
 - Photos and videos can be combined in the same call. Multiple of each are allowed.
 
+Usage & cost:
+- Every request prints token usage and an estimated cost to **stderr** (stdout stays just the answer). Relay it if the user cares about spend; the cost is an estimate. Set `ASK_GEMINI_NO_USAGE=1` to suppress it.
+
 ## How to Use This Skill
 
 When the user invokes `/ask-gemini`, follow this process:

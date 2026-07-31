@@ -419,6 +419,27 @@ func TestCallGeminiToolsForwarded(t *testing.T) {
 	}
 }
 
+func TestCallGeminiSurfacesUsage(t *testing.T) {
+	withMockAPI(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(GenerateResponse{
+			Candidates: []Candidate{{Content: Content{Parts: []Part{{Text: "ok"}}}}},
+			UsageMetadata: &UsageMetadata{
+				PromptTokenCount:     120,
+				CandidatesTokenCount: 45,
+				TotalTokenCount:      165,
+			},
+		})
+	})
+	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
+	res, err := callGemini("k", "gemini-3.6-flash", conv, "", nil, false)
+	if err != nil {
+		t.Fatalf("callGemini: %v", err)
+	}
+	if res.usage.promptTokens != 120 || res.usage.outputTokens != 45 || res.usage.totalTokens != 165 {
+		t.Errorf("usage = %+v, want {120 45 165}", res.usage)
+	}
+}
+
 func TestIsImageModel(t *testing.T) {
 	image := []string{
 		"gemini-3-pro-image-preview",
