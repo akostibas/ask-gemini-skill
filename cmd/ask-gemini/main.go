@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -22,6 +23,7 @@ var version = "dev"
 
 const (
 	defaultModel       = "gemini-3.6-flash"
+	defaultImageModel  = "gemini-3.1-flash-image-preview" // Nano Banana 2 (flash tier); auto-selected for --out
 	sessionFilePrefix  = "ask-gemini-"
 	defaultSessionName = "default"
 	videoPollInterval  = 2 * time.Second
@@ -74,6 +76,10 @@ type GenerateRequest struct {
 type GenerationConfig struct {
 	Temperature     float64 `json:"temperature,omitempty"`
 	MaxOutputTokens int     `json:"maxOutputTokens,omitempty"`
+	// ResponseModalities requests non-text output. For image generation
+	// (Nano Banana models), set to ["IMAGE","TEXT"] so the model returns the
+	// picture as an inlineData part (plus any accompanying text).
+	ResponseModalities []string `json:"responseModalities,omitempty"`
 }
 
 type GenerateResponse struct {
@@ -113,6 +119,21 @@ type Conversation struct {
 	Model     string    `json:"model"`
 	StartedAt string    `json:"started_at"`
 	Messages  []Content `json:"messages"`
+}
+
+// geminiResult holds the parsed model turn: concatenated text plus any images
+// returned as inlineData parts (base64, with their mime type).
+type geminiResult struct {
+	text   string
+	images []InlineData
+}
+
+// isImageModel reports whether a model ID produces images. Every Gemini image
+// model carries "image" in its ID (e.g. gemini-3-pro-image-preview,
+// gemini-2.5-flash-image); text models never do. Used to keep --out and the
+// chosen model consistent without a capability lookup.
+func isImageModel(model string) bool {
+	return strings.Contains(strings.ToLower(model), "image")
 }
 
 // Multi-value string flag
@@ -364,15 +385,20 @@ func attachFiles(apiKey string, paths []string, requireActive bool) ([]Part, err
 	return parts, nil
 }
 
-func callGemini(apiKey, model string, conversation *Conversation, systemPrompt string, tools []Tool) (string, error) {
+func callGemini(apiKey, model string, conversation *Conversation, systemPrompt string, tools []Tool, imageOut bool) (*geminiResult, error) {
 	url := fmt.Sprintf("%s/%s:generateContent?key=%s", apiBaseURL, model, apiKey)
 
+	genConfig := GenerationConfig{
+		MaxOutputTokens: 32768,
+	}
+	if imageOut {
+		genConfig.ResponseModalities = []string{"IMAGE", "TEXT"}
+	}
+
 	req := GenerateRequest{
-		Contents: conversation.Messages,
-		GenerationConfig: GenerationConfig{
-			MaxOutputTokens: 32768,
-		},
-		Tools: tools,
+		Contents:         conversation.Messages,
+		GenerationConfig: genConfig,
+		Tools:            tools,
 	}
 
 	if systemPrompt != "" {
@@ -383,30 +409,30 @@ func callGemini(apiKey, model string, conversation *Conversation, systemPrompt s
 
 	body, err := json.Marshal(req)
 	if err != nil {
-		return "", fmt.Errorf("marshaling request: %w", err)
+		return nil, fmt.Errorf("marshaling request: %w", err)
 	}
 
 	httpReq, err := http.NewRequest("POST", url, bytes.NewReader(body))
 	if err != nil {
-		return "", fmt.Errorf("creating request: %w", err)
+		return nil, fmt.Errorf("creating request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{Timeout: 120 * time.Second}
 	resp, err := client.Do(httpReq)
 	if err != nil {
-		return "", fmt.Errorf("API call failed: %w", err)
+		return nil, fmt.Errorf("API call failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("reading response: %w", err)
+		return nil, fmt.Errorf("reading response: %w", err)
 	}
 
 	var result GenerateResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
-		return "", fmt.Errorf("parsing response: %w\nraw: %s", err, string(respBody))
+		return nil, fmt.Errorf("parsing response: %w\nraw: %s", err, string(respBody))
 	}
 
 	if result.Error != nil {
@@ -414,11 +440,11 @@ func callGemini(apiKey, model string, conversation *Conversation, systemPrompt s
 		if result.Error.Code == 503 && len(tools) > 0 {
 			msg += "\n(503 with grounding tools active can mean Google's fetcher refused or timed out on a URL — try --no-url-context if you passed one)"
 		}
-		return "", fmt.Errorf("%s", msg)
+		return nil, fmt.Errorf("%s", msg)
 	}
 
 	if len(result.Candidates) == 0 {
-		return "", fmt.Errorf("empty response from Gemini\nraw: %s", string(respBody))
+		return nil, fmt.Errorf("empty response from Gemini\nraw: %s", string(respBody))
 	}
 
 	cand := result.Candidates[0]
@@ -430,10 +456,55 @@ func callGemini(apiKey, model string, conversation *Conversation, systemPrompt s
 	}
 
 	if len(cand.Content.Parts) == 0 {
-		return "", fmt.Errorf("no content in Gemini response (finishReason=%q)\nraw: %s", cand.FinishReason, string(respBody))
+		return nil, fmt.Errorf("no content in Gemini response (finishReason=%q)\nraw: %s", cand.FinishReason, string(respBody))
 	}
 
-	return cand.Content.Parts[0].Text, nil
+	// Collect every part: text is concatenated, image inlineData parts are
+	// gathered for the caller to write out. Image models may return several
+	// images and/or interleave explanatory text.
+	res := &geminiResult{}
+	for _, p := range cand.Content.Parts {
+		switch {
+		case p.Text != "":
+			res.text += p.Text
+		case p.InlineData != nil && strings.HasPrefix(p.InlineData.MimeType, "image/"):
+			res.images = append(res.images, *p.InlineData)
+		}
+	}
+
+	return res, nil
+}
+
+// writeImages decodes base64 image parts and writes them to disk. With a single
+// image it writes exactly outPath; with several it inserts a 1-based index
+// before the extension (out.png -> out-1.png, out-2.png). Returns the paths
+// written, in order.
+func writeImages(outPath string, images []InlineData) ([]string, error) {
+	var written []string
+	for i, img := range images {
+		data, err := base64.StdEncoding.DecodeString(img.Data)
+		if err != nil {
+			return written, fmt.Errorf("decoding image %d: %w", i+1, err)
+		}
+		p := outPath
+		if len(images) > 1 {
+			ext := filepath.Ext(outPath)
+			p = fmt.Sprintf("%s-%d%s", strings.TrimSuffix(outPath, ext), i+1, ext)
+		}
+		// The model picks the output format (often JPEG); the user picks the
+		// path. Honor the path but warn if its extension implies a different
+		// format than the bytes we're writing, so a .png holding JPEG isn't a
+		// silent surprise.
+		if want := detectMimeType(p); strings.HasPrefix(want, "image/") && want != img.MimeType {
+			fmt.Fprintf(os.Stderr, "Note: model returned %s but %s has a %s extension; wrote %s bytes to that path.\n",
+				img.MimeType, filepath.Base(p), filepath.Ext(p), img.MimeType)
+		}
+		if err := os.WriteFile(p, data, 0644); err != nil {
+			return written, fmt.Errorf("writing %s: %w", p, err)
+		}
+		written = append(written, p)
+	}
+	return written, nil
 }
 
 // resolveVersion reports the build version. A value injected via
@@ -512,7 +583,7 @@ func resolvePrompt(args []string, stdin io.Reader, stdinPiped bool) (string, err
 }
 
 func main() {
-	model := flag.String("model", defaultModel, "Gemini model ID")
+	model := flag.String("model", defaultModel, "Gemini model ID (see Models below)")
 	reset := flag.Bool("reset", false, "Reset conversation history")
 	system := flag.String("system", "", "System prompt (used on first message or after reset)")
 	showHistory := flag.Bool("history", false, "Show conversation history and exit")
@@ -520,17 +591,81 @@ func main() {
 	session := flag.String("session", "", "Session name; conversation stored at /tmp/ask-gemini-<name>.json")
 	noSearch := flag.Bool("no-search", false, "Disable Google Search grounding (enabled by default)")
 	noURLContext := flag.Bool("no-url-context", false, "Disable URL context fetching (enabled by default)")
+	out := flag.String("out", "", "Generate an image and write it here (see Models below). Multiple images get -N suffixes.")
 	var photos stringSlice
 	var videos stringSlice
 	var audios stringSlice
 	flag.Var(&photos, "photo", "Path to a photo to attach (repeatable)")
 	flag.Var(&videos, "video", "Path to a video to attach (repeatable)")
 	flag.Var(&audios, "audio", "Path to an audio file to attach (repeatable)")
+
+	flag.Usage = func() {
+		w := flag.CommandLine.Output()
+		fmt.Fprint(w, "ask-gemini — a second opinion from Google Gemini, or image generation with Nano Banana.\n\n"+
+			"Usage:\n"+
+			"  ask-gemini [flags] <prompt>\n"+
+			"  echo 'prompt' | ask-gemini [flags]\n"+
+			"  echo 'payload' | ask-gemini [flags] <prompt>\n\n"+
+			"Flags:\n")
+		// flag.PrintDefaults() renders single-dash names (-model); rewrite the
+		// flag-name lines to the double-dash form to match how the flags are
+		// documented and typed. Both forms work at parse time.
+		var buf bytes.Buffer
+		flag.CommandLine.SetOutput(&buf)
+		flag.PrintDefaults()
+		flag.CommandLine.SetOutput(w)
+		for _, line := range strings.SplitAfter(buf.String(), "\n") {
+			if strings.HasPrefix(line, "  -") && !strings.HasPrefix(line, "  --") {
+				line = "  -" + line[2:] // "  -name" -> "  --name"
+			}
+			fmt.Fprint(w, line)
+		}
+		fmt.Fprintf(w, "\nModels:\n"+
+			"  Text (default):  %s   (override with --model <id>)\n"+
+			"  Image (--out):   %s   (Nano Banana 2 — default when --out is set)\n"+
+			"                   gemini-3-pro-image-preview       (Nano Banana Pro — highest quality)\n"+
+			"                   gemini-2.5-flash-image           (Nano Banana — original)\n"+
+			"  Any other Gemini model ID also works with --model.\n\n"+
+			"Credentials (one required):\n"+
+			"  GEMINI_API_KEY          the API key, directly\n"+
+			"  ASK_GEMINI_KEY_COMMAND  a shell command whose stdout is the key\n",
+			defaultModel, defaultImageModel)
+	}
+
 	flag.Parse()
 
 	if *showVersion {
 		fmt.Println(resolveVersion())
 		return
+	}
+
+	// Was --model given explicitly? We can't tell an explicit --model from the
+	// default by value alone, so ask the flag package which flags were set.
+	modelExplicit := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "model" {
+			modelExplicit = true
+		}
+	})
+
+	// Resolve the model and image mode. --out turns on image output. When --out
+	// is set and no --model was given, auto-select the default image model. When
+	// --model IS given, honor it but keep it consistent with --out: a text model
+	// with --out (or an image model without --out) is a mistake we catch here
+	// rather than after a wasted round trip.
+	imageMode := *out != ""
+	resolvedModel := *model
+	switch {
+	case imageMode && !modelExplicit:
+		resolvedModel = defaultImageModel
+	case imageMode && !isImageModel(resolvedModel):
+		fmt.Fprintf(os.Stderr, "Error: --out needs an image-capable model, but %q is a text model.\n"+
+			"Use one of: gemini-3-pro-image-preview, gemini-3.1-flash-image-preview, gemini-2.5-flash-image — or omit --model to use the default (%s).\n",
+			resolvedModel, defaultImageModel)
+		os.Exit(1)
+	case !imageMode && isImageModel(resolvedModel):
+		fmt.Fprintf(os.Stderr, "Error: %q only produces images; pass --out <path> to save the result.\n", resolvedModel)
+		os.Exit(1)
 	}
 
 	convPath := sessionPath(*session)
@@ -590,9 +725,7 @@ func main() {
 	}
 
 	if !hasInput {
-		fmt.Fprintln(os.Stderr, "Usage: ask-gemini [flags] <prompt>")
-		fmt.Fprintln(os.Stderr, "       echo 'prompt' | ask-gemini [flags]")
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 
@@ -607,7 +740,7 @@ func main() {
 	}
 	if conv == nil {
 		conv = &Conversation{
-			Model:     *model,
+			Model:     resolvedModel,
 			StartedAt: time.Now().Format(time.RFC3339),
 			Messages:  []Content{},
 		}
@@ -655,34 +788,50 @@ func main() {
 		Parts: parts,
 	})
 
-	// Determine system prompt — use provided one, or default on first turn
+	// Determine system prompt — use provided one, or the consultant default on
+	// the first turn. The default is a text-consult persona, so skip it in image
+	// mode (a --system prompt still applies if the user gives one).
 	systemPrompt := *system
-	if systemPrompt == "" && len(conv.Messages) == 1 {
+	if systemPrompt == "" && !imageMode && len(conv.Messages) == 1 {
 		systemPrompt = "You are a knowledgeable software engineering consultant. " +
 			"Give concise, direct answers. When analyzing code, focus on correctness, " +
 			"edge cases, and non-obvious issues. If you disagree with an approach, say so clearly."
 	}
 
-	// Build tools list — both enabled by default, opt-out via flags
+	// Build tools list — grounding tools are enabled by default for text
+	// consults, opt-out via flags. Image models don't support them, so omit
+	// tools entirely in image mode.
 	var tools []Tool
-	if !*noSearch {
-		tools = append(tools, Tool{GoogleSearch: &struct{}{}})
-	}
-	if !*noURLContext {
-		tools = append(tools, Tool{URLContext: &struct{}{}})
+	if !imageMode {
+		if !*noSearch {
+			tools = append(tools, Tool{GoogleSearch: &struct{}{}})
+		}
+		if !*noURLContext {
+			tools = append(tools, Tool{URLContext: &struct{}{}})
+		}
 	}
 
-	// Call Gemini
-	response, err := callGemini(apiKey, conv.Model, conv, systemPrompt, tools)
+	// Call Gemini. Use the resolved model (which may differ from a stored
+	// session's original model when --model/--out is set on this turn).
+	res, err := callGemini(apiKey, resolvedModel, conv, systemPrompt, tools, imageMode)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Add assistant response to conversation
+	// Add assistant response to conversation. Persist both the text and any
+	// generated images (as inlineData) so a multi-turn --session can keep
+	// editing the last image.
+	var respParts []Part
+	if res.text != "" {
+		respParts = append(respParts, Part{Text: res.text})
+	}
+	for _, img := range res.images {
+		respParts = append(respParts, Part{InlineData: &img})
+	}
 	conv.Messages = append(conv.Messages, Content{
 		Role:  "model",
-		Parts: []Part{{Text: response}},
+		Parts: respParts,
 	})
 
 	// Save conversation
@@ -690,6 +839,24 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Warning: could not save conversation: %v\n", err)
 	}
 
-	// Output response
-	fmt.Println(response)
+	// Write generated images, if any were requested.
+	if imageMode {
+		if len(res.images) == 0 {
+			fmt.Fprintln(os.Stderr, "Warning: the model returned no image.")
+		} else {
+			paths, err := writeImages(*out, res.images)
+			for _, p := range paths {
+				fmt.Fprintf(os.Stderr, "Saved image to %s\n", p)
+			}
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+		}
+	}
+
+	// Output any text response.
+	if res.text != "" {
+		fmt.Println(res.text)
+	}
 }

@@ -64,6 +64,7 @@ Flags:
 - `--photo <path>` — attach an image (repeatable).
 - `--video <path>` — attach a video (repeatable). Waits for File API processing.
 - `--audio <path>` — attach an audio file (repeatable).
+- `--out <path>` — generate an image and write it to `<path>` (see below).
 - `--model <id>` — override the model (default `gemini-3.6-flash`).
 - `--system <prompt>` — system prompt; only applied on the first turn.
 - `--history` — print the current conversation and exit.
@@ -71,6 +72,29 @@ Flags:
 
 File API uploads are retained by Google for ~48 hours, so a single `--session`
 can keep referencing attachments across turns without re-uploading.
+
+### Generating images (Nano Banana)
+
+Pass `--out <path>` to generate an image instead of text:
+
+```sh
+ask-gemini --out logo.png "a minimalist fox logo, flat vector style"
+```
+
+- `--out` auto-selects an image model (`gemini-3.1-flash-image-preview`, Nano
+  Banana 2) when you don't pass `--model`. Override with any image-capable
+  model, e.g. `--model gemini-3-pro-image-preview` (Nano Banana Pro) or
+  `--model gemini-2.5-flash-image`. Pairing `--out` with a text model — or an
+  image model without `--out` — is rejected up front.
+- The image is written to `<path>`; if the model returns several, they get
+  `-1`, `-2` suffixes (`logo-1.png`, `logo-2.png`). Any accompanying text is
+  printed to stdout. The model chooses the format (often JPEG); if it doesn't
+  match your extension, a note is printed but the file is still written to the
+  path you gave.
+- Combine with `--session` to edit iteratively — a follow-up turn (no `--out`
+  change needed) sees the previous image and can refine it. Attach reference
+  images with `--photo` to guide or edit.
+- Grounding tools (search, URL context) don't apply in image mode.
 
 ## Staying up to date
 
