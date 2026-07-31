@@ -283,12 +283,12 @@ func TestCallGeminiSuccess(t *testing.T) {
 	conv := &Conversation{Messages: []Content{
 		{Role: "user", Parts: []Part{{Text: "the question"}}},
 	}}
-	resp, err := callGemini("test-key", "gemini-3.6-flash", conv, "be terse", nil)
+	resp, err := callGemini("test-key", "gemini-3.6-flash", conv, "be terse", nil, false)
 	if err != nil {
 		t.Fatalf("callGemini: %v", err)
 	}
-	if resp != "the answer" {
-		t.Errorf("response = %q, want %q", resp, "the answer")
+	if resp.text != "the answer" {
+		t.Errorf("response = %q, want %q", resp.text, "the answer")
 	}
 	if !strings.Contains(gotPath, "gemini-3.6-flash:generateContent") {
 		t.Errorf("request path = %q, want it to include the model and method", gotPath)
@@ -311,7 +311,7 @@ func TestCallGeminiNoSystemPrompt(t *testing.T) {
 		})
 	})
 	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
-	if _, err := callGemini("k", "m", conv, "", nil); err != nil {
+	if _, err := callGemini("k", "m", conv, "", nil, false); err != nil {
 		t.Fatalf("callGemini: %v", err)
 	}
 	if gotReq.SystemInstruction != nil {
@@ -327,7 +327,7 @@ func TestCallGeminiAPIError(t *testing.T) {
 		})
 	})
 	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
-	_, err := callGemini("k", "bogus-model", conv, "", nil)
+	_, err := callGemini("k", "bogus-model", conv, "", nil, false)
 	if err == nil {
 		t.Fatal("expected error for API error response, got nil")
 	}
@@ -341,7 +341,7 @@ func TestCallGeminiEmptyCandidates(t *testing.T) {
 		json.NewEncoder(w).Encode(GenerateResponse{Candidates: nil})
 	})
 	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
-	if _, err := callGemini("k", "m", conv, "", nil); err == nil {
+	if _, err := callGemini("k", "m", conv, "", nil, false); err == nil {
 		t.Error("expected error for empty candidates, got nil")
 	}
 }
@@ -356,12 +356,12 @@ func TestCallGeminiTruncatedStillReturnsText(t *testing.T) {
 		})
 	})
 	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
-	resp, err := callGemini("k", "m", conv, "", nil)
+	resp, err := callGemini("k", "m", conv, "", nil, false)
 	if err != nil {
 		t.Fatalf("callGemini: %v", err)
 	}
-	if resp != "partial answer" {
-		t.Errorf("response = %q, want the partial text returned despite MAX_TOKENS", resp)
+	if resp.text != "partial answer" {
+		t.Errorf("response = %q, want the partial text returned despite MAX_TOKENS", resp.text)
 	}
 }
 
@@ -372,7 +372,7 @@ func TestCallGeminiBlockedEmptyParts(t *testing.T) {
 		})
 	})
 	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
-	_, err := callGemini("k", "m", conv, "", nil)
+	_, err := callGemini("k", "m", conv, "", nil, false)
 	if err == nil {
 		t.Fatal("expected error when candidate has no content parts, got nil")
 	}
@@ -386,7 +386,7 @@ func TestCallGeminiMalformedJSON(t *testing.T) {
 		io.WriteString(w, "<html>not json</html>")
 	})
 	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
-	if _, err := callGemini("k", "m", conv, "", nil); err == nil {
+	if _, err := callGemini("k", "m", conv, "", nil, false); err == nil {
 		t.Error("expected error for malformed response body, got nil")
 	}
 }
@@ -405,7 +405,7 @@ func TestCallGeminiToolsForwarded(t *testing.T) {
 		{GoogleSearch: &struct{}{}},
 		{URLContext: &struct{}{}},
 	}
-	if _, err := callGemini("k", "m", conv, "", tools); err != nil {
+	if _, err := callGemini("k", "m", conv, "", tools, false); err != nil {
 		t.Fatalf("callGemini: %v", err)
 	}
 	if len(gotReq.Tools) != 2 {
@@ -419,6 +419,137 @@ func TestCallGeminiToolsForwarded(t *testing.T) {
 	}
 }
 
+func TestIsImageModel(t *testing.T) {
+	image := []string{
+		"gemini-3-pro-image-preview",
+		"gemini-3.1-flash-image-preview",
+		"gemini-2.5-flash-image",
+		defaultImageModel,
+	}
+	for _, m := range image {
+		if !isImageModel(m) {
+			t.Errorf("isImageModel(%q) = false, want true", m)
+		}
+	}
+	text := []string{"gemini-3.6-flash", defaultModel, "gemini-2.5-pro"}
+	for _, m := range text {
+		if isImageModel(m) {
+			t.Errorf("isImageModel(%q) = true, want false", m)
+		}
+	}
+}
+
+// A base64 payload standing in for image bytes.
+const fakePNG = "aGVsbG8gaW1hZ2U=" // "hello image"
+
+func TestCallGeminiImageMode(t *testing.T) {
+	var gotReq GenerateRequest
+	withMockAPI(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &gotReq)
+		json.NewEncoder(w).Encode(GenerateResponse{
+			Candidates: []Candidate{{Content: Content{Role: "model", Parts: []Part{
+				{Text: "here you go"},
+				{InlineData: &InlineData{MimeType: "image/png", Data: fakePNG}},
+			}}}},
+		})
+	})
+
+	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "a cat"}}}}}
+	res, err := callGemini("k", defaultImageModel, conv, "", nil, true)
+	if err != nil {
+		t.Fatalf("callGemini: %v", err)
+	}
+	// Request must ask for image output.
+	if len(gotReq.GenerationConfig.ResponseModalities) == 0 {
+		t.Fatal("expected responseModalities to be set in image mode")
+	}
+	foundImage := false
+	for _, m := range gotReq.GenerationConfig.ResponseModalities {
+		if m == "IMAGE" {
+			foundImage = true
+		}
+	}
+	if !foundImage {
+		t.Errorf("responseModalities = %v, want it to include IMAGE", gotReq.GenerationConfig.ResponseModalities)
+	}
+	// Response must surface both text and the image part.
+	if res.text != "here you go" {
+		t.Errorf("text = %q, want %q", res.text, "here you go")
+	}
+	if len(res.images) != 1 || res.images[0].Data != fakePNG {
+		t.Errorf("images = %+v, want one image with data %q", res.images, fakePNG)
+	}
+}
+
+func TestCallGeminiTextModeOmitsResponseModalities(t *testing.T) {
+	var gotBody []byte
+	withMockAPI(t, func(w http.ResponseWriter, r *http.Request) {
+		gotBody, _ = io.ReadAll(r.Body)
+		json.NewEncoder(w).Encode(GenerateResponse{
+			Candidates: []Candidate{{Content: Content{Parts: []Part{{Text: "ok"}}}}},
+		})
+	})
+	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
+	if _, err := callGemini("k", "m", conv, "", nil, false); err != nil {
+		t.Fatalf("callGemini: %v", err)
+	}
+	if strings.Contains(string(gotBody), "responseModalities") {
+		t.Error("responseModalities should be omitted from the request in text mode")
+	}
+}
+
+func TestWriteImagesSingle(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "cat.png")
+	paths, err := writeImages(out, []InlineData{{MimeType: "image/png", Data: fakePNG}})
+	if err != nil {
+		t.Fatalf("writeImages: %v", err)
+	}
+	if len(paths) != 1 || paths[0] != out {
+		t.Fatalf("paths = %v, want [%s]", paths, out)
+	}
+	got, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("reading written file: %v", err)
+	}
+	if string(got) != "hello image" {
+		t.Errorf("decoded content = %q, want %q", string(got), "hello image")
+	}
+}
+
+func TestWriteImagesMultipleGetIndexSuffix(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "art.png")
+	paths, err := writeImages(out, []InlineData{
+		{MimeType: "image/png", Data: fakePNG},
+		{MimeType: "image/png", Data: fakePNG},
+	})
+	if err != nil {
+		t.Fatalf("writeImages: %v", err)
+	}
+	want := []string{
+		filepath.Join(dir, "art-1.png"),
+		filepath.Join(dir, "art-2.png"),
+	}
+	if len(paths) != 2 || paths[0] != want[0] || paths[1] != want[1] {
+		t.Fatalf("paths = %v, want %v", paths, want)
+	}
+	for _, p := range want {
+		if _, err := os.Stat(p); err != nil {
+			t.Errorf("expected %s to exist: %v", p, err)
+		}
+	}
+}
+
+func TestWriteImagesBadBase64(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "bad.png")
+	if _, err := writeImages(out, []InlineData{{MimeType: "image/png", Data: "!!!not base64!!!"}}); err == nil {
+		t.Error("expected error for undecodable base64, got nil")
+	}
+}
+
 func TestCallGeminiNoToolsOmitted(t *testing.T) {
 	var gotBody []byte
 	withMockAPI(t, func(w http.ResponseWriter, r *http.Request) {
@@ -428,7 +559,7 @@ func TestCallGeminiNoToolsOmitted(t *testing.T) {
 		})
 	})
 	conv := &Conversation{Messages: []Content{{Role: "user", Parts: []Part{{Text: "q"}}}}}
-	if _, err := callGemini("k", "m", conv, "", nil); err != nil {
+	if _, err := callGemini("k", "m", conv, "", nil, false); err != nil {
 		t.Fatalf("callGemini: %v", err)
 	}
 	if strings.Contains(string(gotBody), `"tools"`) {

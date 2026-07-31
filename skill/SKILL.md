@@ -13,6 +13,7 @@ Get a second opinion from Google's Gemini 3.6 Flash on a tricky problem. Useful 
 - Code review of a specific function or pattern
 - Sanity-checking an unusual approach
 - Showing Gemini photos or videos for visual analysis
+- Generating or editing images with Nano Banana (`--out`, see below)
 
 ## CLI
 
