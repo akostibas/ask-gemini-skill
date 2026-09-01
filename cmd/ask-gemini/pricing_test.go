@@ -9,14 +9,14 @@ import (
 func approx(a, b float64) bool { return math.Abs(a-b) < 1e-9 }
 
 func TestEstimateCostText(t *testing.T) {
-	// gemini-3.6-flash: $1.50/1M in, $7.50/1M out.
+	// gemini-3.7-flash: $0.75/1M in, $3.75/1M out.
 	u := usage{promptTokens: 1_000_000, outputTokens: 1_000_000, totalTokens: 2_000_000}
-	cost, ok := estimateCost("gemini-3.6-flash", u, 0)
+	cost, ok := estimateCost("gemini-3.7-flash", u, 0)
 	if !ok {
-		t.Fatal("expected a known price for gemini-3.6-flash")
+		t.Fatal("expected a known price for gemini-3.7-flash")
 	}
-	if !approx(cost, 9.0) {
-		t.Errorf("cost = %v, want 9.0 (1.50 + 7.50)", cost)
+	if !approx(cost, 4.5) {
+		t.Errorf("cost = %v, want 4.5 (0.75 + 3.75)", cost)
 	}
 }
 
@@ -36,14 +36,14 @@ func TestEstimateCostImageUsesPerImage(t *testing.T) {
 
 func TestEstimateCostIncludesThinkingTokens(t *testing.T) {
 	// Thinking tokens bill at the output rate and must not be dropped.
-	// gemini-3.6-flash: $7.50/1M out. 1M visible + 1M thinking = $15 output.
+	// gemini-3.7-flash: $3.75/1M out. 1M visible + 1M thinking = $7.50 output.
 	u := usage{outputTokens: 1_000_000, thinkingTokens: 1_000_000, totalTokens: 2_000_000}
-	cost, ok := estimateCost("gemini-3.6-flash", u, 0)
+	cost, ok := estimateCost("gemini-3.7-flash", u, 0)
 	if !ok {
 		t.Fatal("expected a known price")
 	}
-	if !approx(cost, 15.0) {
-		t.Errorf("cost = %v, want 15.0 (2M output-billed tokens at $7.50/1M)", cost)
+	if !approx(cost, 7.5) {
+		t.Errorf("cost = %v, want 7.5 (2M output-billed tokens at $3.75/1M)", cost)
 	}
 }
 
@@ -57,7 +57,7 @@ func TestFormatUsageKnownModel(t *testing.T) {
 	// 1240 in + (830 visible + 98 thinking = 928) out = 2070 total. The "out"
 	// figure includes thinking, and the components sum to the total.
 	u := usage{promptTokens: 1240, outputTokens: 830, thinkingTokens: 98, totalTokens: 2168}
-	got := formatUsage("gemini-3.6-flash", u, 0)
+	got := formatUsage("gemini-3.7-flash", u, 0)
 	for _, want := range []string{"1,240 in", "928 out", "98 thinking", "2,168 tokens", "est. cost: ~$", pricingVerified} {
 		if !strings.Contains(got, want) {
 			t.Errorf("formatUsage output %q missing %q", got, want)
@@ -67,7 +67,7 @@ func TestFormatUsageKnownModel(t *testing.T) {
 
 func TestFormatUsageNoThinkingOmitsNote(t *testing.T) {
 	u := usage{promptTokens: 100, outputTokens: 50, totalTokens: 150}
-	got := formatUsage("gemini-3.6-flash", u, 0)
+	got := formatUsage("gemini-3.7-flash", u, 0)
 	if strings.Contains(got, "thinking") {
 		t.Errorf("did not expect a thinking note when thinkingTokens is 0, got %q", got)
 	}
@@ -81,7 +81,7 @@ func TestFormatUsageUnknownModel(t *testing.T) {
 }
 
 func TestFormatUsageNotReported(t *testing.T) {
-	got := formatUsage("gemini-3.6-flash", usage{}, 0)
+	got := formatUsage("gemini-3.7-flash", usage{}, 0)
 	if !strings.Contains(got, "not reported") {
 		t.Errorf("expected 'not reported' when the API returns no usage, got %q", got)
 	}

@@ -22,8 +22,8 @@ import (
 var version = "dev"
 
 const (
-	defaultModel       = "gemini-3.6-flash"
-	defaultImageModel  = "gemini-3.1-flash-image-preview" // Nano Banana 2 (flash tier); auto-selected for --out
+	defaultModel       = "gemini-3.7-flash"
+	defaultImageModel  = "gemini-3.1-flash-image" // Nano Banana 2 (flash tier); auto-selected for --out
 	sessionFilePrefix  = "ask-gemini-"
 	defaultSessionName = "default"
 	videoPollInterval  = 2 * time.Second
@@ -141,7 +141,7 @@ type geminiResult struct {
 }
 
 // isImageModel reports whether a model ID produces images. Every Gemini image
-// model carries "image" in its ID (e.g. gemini-3-pro-image-preview,
+// model carries "image" in its ID (e.g. gemini-3-pro-image,
 // gemini-2.5-flash-image); text models never do. Used to keep --out and the
 // chosen model consistent without a capability lookup.
 func isImageModel(model string) bool {
@@ -642,14 +642,16 @@ func main() {
 		}
 		fmt.Fprintf(w, "\nModels:\n"+
 			"  Text (default):  %s   (override with --model <id>)\n"+
-			"  Image (--out):   %s   (Nano Banana 2 — default when --out is set)\n"+
-			"                   gemini-3-pro-image-preview       (Nano Banana Pro — highest quality)\n"+
-			"                   gemini-2.5-flash-image           (Nano Banana — original)\n"+
+			"  Image (--out):   %-27s   (Nano Banana 2 — default when --out is set)\n"+
+			"                   %-27s   (Nano Banana Pro — highest quality)\n"+
+			"                   %-27s   (cheapest)\n"+
+			"                   %-27s   (Nano Banana — original)\n"+
 			"  Any other Gemini model ID also works with --model.\n\n"+
 			"Credentials (one required):\n"+
 			"  GEMINI_API_KEY          the API key, directly\n"+
 			"  ASK_GEMINI_KEY_COMMAND  a shell command whose stdout is the key\n",
-			defaultModel, defaultImageModel)
+			defaultModel, defaultImageModel,
+			"gemini-3-pro-image", "gemini-3.1-flash-lite-image", "gemini-2.5-flash-image")
 	}
 
 	flag.Parse()
@@ -680,7 +682,7 @@ func main() {
 		resolvedModel = defaultImageModel
 	case imageMode && !isImageModel(resolvedModel):
 		fmt.Fprintf(os.Stderr, "Error: --out needs an image-capable model, but %q is a text model.\n"+
-			"Use one of: gemini-3-pro-image-preview, gemini-3.1-flash-image-preview, gemini-2.5-flash-image — or omit --model to use the default (%s).\n",
+			"Use one of: gemini-3-pro-image, gemini-3.1-flash-image, gemini-3.1-flash-lite-image, gemini-2.5-flash-image — or omit --model to use the default (%s).\n",
 			resolvedModel, defaultImageModel)
 		os.Exit(1)
 	case !imageMode && isImageModel(resolvedModel):

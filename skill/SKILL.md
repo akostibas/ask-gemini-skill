@@ -1,13 +1,13 @@
 ---
 name: ask-gemini
-description: Get a second opinion from Gemini on thorny problems. Calls the Gemini 3.6 Flash API with conversation history for multi-turn consults.
+description: Get a second opinion from Gemini on thorny problems. Calls the Gemini 3.7 Flash API with conversation history for multi-turn consults.
 ---
 
 # Ask Gemini — Second Opinion Consult
 
 **Prereqs:** the `ask-gemini` binary is on `PATH` and either `GEMINI_API_KEY` or `ASK_GEMINI_KEY_COMMAND` is set in your environment. See the project README for installation and credential setup.
 
-Get a second opinion from Google's Gemini 3.6 Flash on a tricky problem. Useful for:
+Get a second opinion from Google's Gemini 3.7 Flash on a tricky problem. Useful for:
 - Debugging dead ends — describe what you've tried and what's failing
 - Architectural second opinions — "here are two approaches, which is better?"
 - Code review of a specific function or pattern
@@ -35,7 +35,8 @@ Flags:
 - `--audio <path>` — attach an audio file (repeatable). Uploaded via the File API; the CLI waits for `ACTIVE` state before sending.
 - `--no-search` — disable Google Search grounding (enabled by default)
 - `--no-url-context` — disable URL context fetching (enabled by default)
-- `--model <id>` — override model (default: `gemini-3.6-flash`)
+- `--out <path>` — generate an image and write it there. Auto-selects `gemini-3.1-flash-image` (Nano Banana 2); override with `--model gemini-3-pro-image` (best quality), `gemini-3.1-flash-lite-image` (cheapest), or `gemini-2.5-flash-image`. Multiple images get `-1`, `-2` suffixes.
+- `--model <id>` — override model (default: `gemini-3.7-flash`)
 - `--system <prompt>` — custom system prompt (only used on first turn)
 - `--history` — show the current conversation and exit
 - `--version` — print the binary version and exit
