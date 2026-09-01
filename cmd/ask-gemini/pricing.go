@@ -10,7 +10,7 @@ import (
 // Google's published rates (https://ai.google.dev/gemini-api/docs/pricing). The
 // cost line is stamped with this date; when prices change, update the numbers
 // AND this date together.
-const pricingVerified = "2026-07"
+const pricingVerified = "2026-08"
 
 // modelPrice holds standard-tier USD rates for one model. Text models set
 // inputPerM/outputPerM. Image models set inputPerM and perImage — their output
@@ -26,12 +26,17 @@ type modelPrice struct {
 // a model absent here reports tokens but "cost: unknown". Image input rates are
 // approximate (input is a tiny fraction of image cost, which the per-image rate
 // dominates).
+// The 3.x Flash rates below are introductory and double on 2027-01-01
+// ($1.50 in / $7.50 out) — update them and pricingVerified together then.
 var modelPricing = map[string]modelPrice{
-	"gemini-3.6-flash":               {inputPerM: 1.50, outputPerM: 7.50},
-	"gemini-2.5-flash":               {inputPerM: 0.30, outputPerM: 2.50},
-	"gemini-3-pro-image-preview":     {inputPerM: 2.00, perImage: 0.134},
-	"gemini-3.1-flash-image-preview": {inputPerM: 0.50, perImage: 0.067},
-	"gemini-2.5-flash-image":         {inputPerM: 0.30, perImage: 0.039},
+	"gemini-3.7-flash":            {inputPerM: 0.75, outputPerM: 3.75},
+	"gemini-3.6-flash":            {inputPerM: 0.75, outputPerM: 3.75},
+	"gemini-3.5-flash-lite":       {inputPerM: 0.30, outputPerM: 2.50},
+	"gemini-2.5-flash":            {inputPerM: 0.30, outputPerM: 2.50},
+	"gemini-3-pro-image":          {inputPerM: 2.00, perImage: 0.134},
+	"gemini-3.1-flash-image":      {inputPerM: 0.50, perImage: 0.067},
+	"gemini-3.1-flash-lite-image": {inputPerM: 0.25, perImage: 0.0336},
+	"gemini-2.5-flash-image":      {inputPerM: 0.30, perImage: 0.039},
 }
 
 // usage carries the token counts the API reports for one request. outputTokens

@@ -65,7 +65,7 @@ Flags:
 - `--video <path>` — attach a video (repeatable). Waits for File API processing.
 - `--audio <path>` — attach an audio file (repeatable).
 - `--out <path>` — generate an image and write it to `<path>` (see below).
-- `--model <id>` — override the model (default `gemini-3.6-flash`).
+- `--model <id>` — override the model (default `gemini-3.7-flash`).
 - `--system <prompt>` — system prompt; only applied on the first turn.
 - `--history` — print the current conversation and exit.
 - `--version` — print the binary version and exit.
@@ -80,7 +80,7 @@ After every request, a token-usage line and an estimated cost print to
 
 ```
 usage: 54 in + 74 out (73 thinking) = 128 tokens
-est. cost: ~$0.000636 (gemini-3.6-flash, prices as of 2026-07)
+est. cost: ~$0.000318 (gemini-3.7-flash, prices as of 2026-08)
 ```
 
 The token counts come straight from the API and are exact; "thinking" is hidden
@@ -98,9 +98,10 @@ Pass `--out <path>` to generate an image instead of text:
 ask-gemini --out logo.png "a minimalist fox logo, flat vector style"
 ```
 
-- `--out` auto-selects an image model (`gemini-3.1-flash-image-preview`, Nano
+- `--out` auto-selects an image model (`gemini-3.1-flash-image`, Nano
   Banana 2) when you don't pass `--model`. Override with any image-capable
-  model, e.g. `--model gemini-3-pro-image-preview` (Nano Banana Pro) or
+  model, e.g. `--model gemini-3-pro-image` (Nano Banana Pro),
+  `--model gemini-3.1-flash-lite-image` (cheapest) or
   `--model gemini-2.5-flash-image`. Pairing `--out` with a text model — or an
   image model without `--out` — is rejected up front.
 - The image is written to `<path>`; if the model returns several, they get
