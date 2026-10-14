@@ -22,8 +22,8 @@ import (
 var version = "dev"
 
 const (
-	defaultModel       = "gemini-3.7-flash"
-	defaultImageModel  = "gemini-3.1-flash-image" // Nano Banana 2 (flash tier); auto-selected for --out
+	defaultModel       = "gemini-3.8-flash"
+	defaultImageModel  = "gemini-nano-banana-2.1" // Nano Banana 2.1; auto-selected for --out
 	sessionFilePrefix  = "ask-gemini-"
 	defaultSessionName = "default"
 	videoPollInterval  = 2 * time.Second
@@ -140,12 +140,13 @@ type geminiResult struct {
 	usage  usage
 }
 
-// isImageModel reports whether a model ID produces images. Every Gemini image
-// model carries "image" in its ID (e.g. gemini-3-pro-image,
-// gemini-2.5-flash-image); text models never do. Used to keep --out and the
-// chosen model consistent without a capability lookup.
+// isImageModel reports whether a model ID produces images. Image models carry
+// "image" (gemini-3-pro-image) or, from 2.1 on, "nano-banana"
+// (gemini-nano-banana-2.1) in their ID; text models carry neither. Used to keep
+// --out and the chosen model consistent without a capability lookup.
 func isImageModel(model string) bool {
-	return strings.Contains(strings.ToLower(model), "image")
+	m := strings.ToLower(model)
+	return strings.Contains(m, "image") || strings.Contains(m, "nano-banana")
 }
 
 // Multi-value string flag
@@ -642,7 +643,9 @@ func main() {
 		}
 		fmt.Fprintf(w, "\nModels:\n"+
 			"  Text (default):  %s   (override with --model <id>)\n"+
-			"  Image (--out):   %-27s   (Nano Banana 2 — default when --out is set)\n"+
+			"                   gemini-4-argon     (strongest; ~3x the cost)\n"+
+			"  Image (--out):   %-27s   (Nano Banana 2.1 — default when --out is set)\n"+
+			"                   %-27s   (Nano Banana 2)\n"+
 			"                   %-27s   (Nano Banana Pro — highest quality)\n"+
 			"                   %-27s   (cheapest)\n"+
 			"                   %-27s   (Nano Banana — original)\n"+
@@ -651,7 +654,7 @@ func main() {
 			"  GEMINI_API_KEY          the API key, directly\n"+
 			"  ASK_GEMINI_KEY_COMMAND  a shell command whose stdout is the key\n",
 			defaultModel, defaultImageModel,
-			"gemini-3-pro-image", "gemini-3.1-flash-lite-image", "gemini-2.5-flash-image")
+			"gemini-3.1-flash-image", "gemini-3-pro-image", "gemini-3.1-flash-lite-image", "gemini-2.5-flash-image")
 	}
 
 	flag.Parse()
@@ -682,7 +685,7 @@ func main() {
 		resolvedModel = defaultImageModel
 	case imageMode && !isImageModel(resolvedModel):
 		fmt.Fprintf(os.Stderr, "Error: --out needs an image-capable model, but %q is a text model.\n"+
-			"Use one of: gemini-3-pro-image, gemini-3.1-flash-image, gemini-3.1-flash-lite-image, gemini-2.5-flash-image — or omit --model to use the default (%s).\n",
+			"Use one of: gemini-nano-banana-2.1, gemini-3-pro-image, gemini-3.1-flash-image, gemini-3.1-flash-lite-image, gemini-2.5-flash-image — or omit --model to use the default (%s).\n",
 			resolvedModel, defaultImageModel)
 		os.Exit(1)
 	case !imageMode && isImageModel(resolvedModel):
