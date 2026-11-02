@@ -64,7 +64,8 @@ Flags:
 - `--photo <path>` — attach an image (repeatable).
 - `--video <path>` — attach a video (repeatable). Waits for File API processing.
 - `--audio <path>` — attach an audio file (repeatable).
-- `--out <path>` — generate an image and write it to `<path>` (see below).
+- `--out <path>` — generate an image (or a video, for `.mp4`) and write it to `<path>` (see below).
+- `--resolution <360p|720p|1080p|4k>` — video resolution (default `360p`).
 - `--model <id>` — override the model (default `gemini-4-argon`).
 - `--system <prompt>` — system prompt; only applied on the first turn.
 - `--history` — print the current conversation and exit.
@@ -114,6 +115,21 @@ ask-gemini --out logo.png "a minimalist fox logo, flat vector style"
   change needed) sees the previous image and can refine it. Attach reference
   images with `--photo` to guide or edit.
 - Grounding tools (search, URL context) don't apply in image mode.
+
+### Generating video (Gemini Omni)
+
+Give `--out` a video extension (`.mp4`) to get a 3–10 second clip with sound:
+
+```sh
+ask-gemini --out fox.mp4 "a paper fox unfolding itself on a desk"
+ask-gemini --out wave.mp4 --photo fox.png --resolution 720p "the fox waves"
+```
+
+- Uses `gemini-omni-1.1-flash`. `--photo` animates a still image.
+- `--resolution` is `360p` (default, fastest), `720p`, `1080p` or `4k`. Video is
+  billed per second: ~$0.03/s at 360p up to ~$0.30/s at 4k, so a 10s 720p clip
+  is about $1. The clip length and estimated cost print to stderr.
+- Each clip is a one-off: `--session` follow-up edits aren't supported yet.
 
 ## Staying up to date
 
