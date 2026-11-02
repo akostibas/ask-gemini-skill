@@ -453,7 +453,7 @@ func TestIsImageModel(t *testing.T) {
 			t.Errorf("isImageModel(%q) = false, want true", m)
 		}
 	}
-	text := []string{"gemini-3.6-flash", defaultModel, "gemini-4-argon", "gemini-2.5-pro"}
+	text := []string{"gemini-3.6-flash", defaultModel, "gemini-3.8-flash", "gemini-2.5-pro"}
 	for _, m := range text {
 		if isImageModel(m) {
 			t.Errorf("isImageModel(%q) = true, want false", m)
