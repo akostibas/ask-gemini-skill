@@ -612,7 +612,8 @@ func main() {
 	session := flag.String("session", "", "Session name; conversation stored at /tmp/ask-gemini-<name>.json")
 	noSearch := flag.Bool("no-search", false, "Disable Google Search grounding (enabled by default)")
 	noURLContext := flag.Bool("no-url-context", false, "Disable URL context fetching (enabled by default)")
-	out := flag.String("out", "", "Generate an image and write it here (see Models below). Multiple images get -N suffixes.")
+	out := flag.String("out", "", "Generate an image (or, with a video extension like .mp4, a video clip) and write it here (see Models below). Multiple images get -N suffixes.")
+	resolution := flag.String("resolution", defaultVideoResolution, "Video resolution with --out <file>.mp4: 360p, 720p, 1080p, or 4k")
 	var photos stringSlice
 	var videos stringSlice
 	var audios stringSlice
@@ -622,7 +623,7 @@ func main() {
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
-		fmt.Fprint(w, "ask-gemini — a second opinion from Google Gemini, or image generation with Nano Banana.\n\n"+
+		fmt.Fprint(w, "ask-gemini — a second opinion from Google Gemini, or image/video generation.\n\n"+
 			"Usage:\n"+
 			"  ask-gemini [flags] <prompt>\n"+
 			"  echo 'prompt' | ask-gemini [flags]\n"+
@@ -649,12 +650,15 @@ func main() {
 			"                   %-27s   (Nano Banana Pro — highest quality)\n"+
 			"                   %-27s   (cheapest)\n"+
 			"                   %-27s   (Nano Banana — original)\n"+
+			"  Video (--out x.mp4): %s   (Omni; 3–10s clip with sound; --photo animates a still;\n"+
+			"                   ~$0.03/s at 360p, $0.10/s 720p, $0.15/s 1080p, $0.30/s 4k; no --session)\n"+
 			"  Any other Gemini model ID also works with --model.\n\n"+
 			"Credentials (one required):\n"+
 			"  GEMINI_API_KEY          the API key, directly\n"+
 			"  ASK_GEMINI_KEY_COMMAND  a shell command whose stdout is the key\n",
 			defaultModel, defaultImageModel,
-			"gemini-3.1-flash-image", "gemini-3-pro-image", "gemini-3.1-flash-lite-image", "gemini-2.5-flash-image")
+			"gemini-3.1-flash-image", "gemini-3-pro-image", "gemini-3.1-flash-lite-image", "gemini-2.5-flash-image",
+			defaultVideoModel)
 	}
 
 	flag.Parse()
@@ -678,9 +682,23 @@ func main() {
 	// --model IS given, honor it but keep it consistent with --out: a text model
 	// with --out (or an image model without --out) is a mistake we catch here
 	// rather than after a wasted round trip.
-	imageMode := *out != ""
+	videoMode := *out != "" && isVideoPath(*out)
+	imageMode := *out != "" && !videoMode
 	resolvedModel := *model
+	if _, ok := videoPerSecond[*resolution]; !ok {
+		fmt.Fprintf(os.Stderr, "Error: --resolution must be one of 360p, 720p, 1080p, 4k (got %q).\n", *resolution)
+		os.Exit(1)
+	}
 	switch {
+	case videoMode && !modelExplicit:
+		resolvedModel = defaultVideoModel
+	case videoMode && !isVideoModel(resolvedModel):
+		fmt.Fprintf(os.Stderr, "Error: a video --out needs a video model, but %q isn't one. Omit --model to use %s.\n", resolvedModel, defaultVideoModel)
+		os.Exit(1)
+	case !videoMode && isVideoModel(resolvedModel):
+		fmt.Fprintf(os.Stderr, "Error: %q only produces video; pass --out <path>.mp4 to save the result.\n", resolvedModel)
+		os.Exit(1)
+	case videoMode:
 	case imageMode && !modelExplicit:
 		resolvedModel = defaultImageModel
 	case imageMode && !isImageModel(resolvedModel):
@@ -757,6 +775,38 @@ func main() {
 	// On a real consult, nudge (to stderr) if a newer release exists. Throttled
 	// to one network check per day; silent on any failure.
 	maybeNotifyUpdate(resolveVersion(), os.Stderr)
+
+	// Video is stateless: clips are too big for the session file, and follow-up
+	// edits (previous_interaction_id) aren't supported yet.
+	if videoMode {
+		if len(videos) > 0 || len(audios) > 0 {
+			fmt.Fprintln(os.Stderr, "Error: video generation accepts --photo only, not --video or --audio.")
+			os.Exit(1)
+		}
+		apiKey, err := getAPIKey()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "Generating %s video with %s (this can take a minute or more)...\n", *resolution, resolvedModel)
+		data, mimeType, err := callOmni(apiKey, resolvedModel, prompt, photos, *resolution)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		if want := detectMimeType(*out); mimeType != "" && want != mimeType {
+			fmt.Fprintf(os.Stderr, "Note: model returned %s; wrote those bytes to %s anyway.\n", mimeType, *out)
+		}
+		if err := os.WriteFile(*out, data, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: writing %s: %v\n", *out, err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "Saved video to %s\n", *out)
+		if os.Getenv("ASK_GEMINI_NO_USAGE") == "" {
+			fmt.Fprintln(os.Stderr, formatVideoCost(resolvedModel, *resolution, data))
+		}
+		return
+	}
 
 	// Load or create conversation
 	conv, err := loadConversation(convPath)

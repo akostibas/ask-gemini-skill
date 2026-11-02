@@ -14,6 +14,7 @@ Get a second opinion from Google's Gemini 4 Argon on a tricky problem. Useful fo
 - Sanity-checking an unusual approach
 - Showing Gemini photos or videos for visual analysis
 - Generating or editing images with Nano Banana (`--out`, see below)
+- Generating short video clips with Gemini Omni (`--out <path>.mp4`)
 
 ## CLI
 
@@ -36,6 +37,7 @@ Flags:
 - `--no-search` — disable Google Search grounding (enabled by default)
 - `--no-url-context` — disable URL context fetching (enabled by default)
 - `--out <path>` — generate an image and write it there. Auto-selects `gemini-nano-banana-2.1` (Nano Banana 2.1); override with `--model gemini-3.1-flash-image` (Nano Banana 2), `--model gemini-3-pro-image` (best quality), `gemini-3.1-flash-lite-image` (cheapest), or `gemini-2.5-flash-image`. Multiple images get `-1`, `-2` suffixes.
+- `--out <path>.mp4` — generate a 3–10s video clip with sound (`gemini-omni-1.1-flash`) instead. `--photo` animates a still. `--resolution` is `360p` (default), `720p`, `1080p` or `4k`; billed ~$0.03/s at 360p up to ~$0.30/s at 4k, so confirm with the user before going above 360p. No `--session` follow-up edits.
 - `--model <id>` — override model (default: `gemini-4-argon`); `gemini-3.8-flash` for routine checks (~1/3 the cost)
 - `--system <prompt>` — custom system prompt (only used on first turn)
 - `--history` — show the current conversation and exit
