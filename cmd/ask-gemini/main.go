@@ -22,7 +22,7 @@ import (
 var version = "dev"
 
 const (
-	defaultModel       = "gemini-3.8-flash"
+	defaultModel       = "gemini-4-argon"
 	defaultImageModel  = "gemini-nano-banana-2.1" // Nano Banana 2.1; auto-selected for --out
 	sessionFilePrefix  = "ask-gemini-"
 	defaultSessionName = "default"
@@ -643,7 +643,7 @@ func main() {
 		}
 		fmt.Fprintf(w, "\nModels:\n"+
 			"  Text (default):  %s   (override with --model <id>)\n"+
-			"                   gemini-4-argon     (strongest; ~3x the cost)\n"+
+			"                   gemini-3.8-flash   (~1/3 the cost; good for routine checks)\n"+
 			"  Image (--out):   %-27s   (Nano Banana 2.1 — default when --out is set)\n"+
 			"                   %-27s   (Nano Banana 2)\n"+
 			"                   %-27s   (Nano Banana Pro — highest quality)\n"+

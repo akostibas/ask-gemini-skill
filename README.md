@@ -65,7 +65,7 @@ Flags:
 - `--video <path>` — attach a video (repeatable). Waits for File API processing.
 - `--audio <path>` — attach an audio file (repeatable).
 - `--out <path>` — generate an image and write it to `<path>` (see below).
-- `--model <id>` — override the model (default `gemini-3.8-flash`).
+- `--model <id>` — override the model (default `gemini-4-argon`).
 - `--system <prompt>` — system prompt; only applied on the first turn.
 - `--history` — print the current conversation and exit.
 - `--version` — print the binary version and exit.
@@ -80,7 +80,7 @@ After every request, a token-usage line and an estimated cost print to
 
 ```
 usage: 54 in + 74 out (73 thinking) = 128 tokens
-est. cost: ~$0.000318 (gemini-3.8-flash, prices as of 2026-10)
+est. cost: ~$0.000848 (gemini-4-argon, prices as of 2026-10)
 ```
 
 The token counts come straight from the API and are exact; "thinking" is hidden
