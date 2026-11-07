@@ -1,8 +1,5 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-GOBIN   ?= $(shell go env GOBIN)
-ifeq ($(GOBIN),)
-GOBIN := $(shell go env GOPATH)/bin
-endif
+BIN_DIR   ?= $(HOME)/bin
 SKILL_DIR ?= $(HOME)/.claude/skills/ask-gemini
 
 LDFLAGS := -X main.version=$(VERSION)
@@ -12,9 +9,13 @@ LDFLAGS := -X main.version=$(VERSION)
 build:
 	go build -ldflags "$(LDFLAGS)" -o ask-gemini ./cmd/ask-gemini
 
-install:
-	go install -ldflags "$(LDFLAGS)" ./cmd/ask-gemini
-	@echo "Installed ask-gemini -> $(GOBIN)/ask-gemini"
+# Builds first, so a failed build leaves the old install. The binary is renamed
+# into place: replaces an old symlink, and a running copy can't block it.
+install: build
+	mkdir -p "$(BIN_DIR)"
+	cp ask-gemini "$(BIN_DIR)/.ask-gemini.new"
+	mv -f "$(BIN_DIR)/.ask-gemini.new" "$(BIN_DIR)/ask-gemini"
+	@echo "Installed ask-gemini -> $(BIN_DIR)/ask-gemini"
 	rm -rf "$(SKILL_DIR)"
 	mkdir -p "$(SKILL_DIR)"
 	cp -R skill/. "$(SKILL_DIR)/"
