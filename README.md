@@ -19,10 +19,11 @@ Or just the binary, from anywhere:
 go install github.com/akostibas/ask-gemini-skill/cmd/ask-gemini@latest
 ```
 
-The binary lands in `$(go env GOBIN)`, falling back to `$(go env GOPATH)/bin`.
-`make install` also copies `skill/` to `~/.claude/skills/ask-gemini/`; override
-either with `GOBIN=...` or `SKILL_DIR=...`. If you used `go install` and want
-the Claude skill too, symlink it:
+`make install` puts the binary in `~/bin` and copies `skill/` to
+`~/.claude/skills/ask-gemini/`; override either with `BIN_DIR=...` or
+`SKILL_DIR=...`. Rerunning it is safe. `go install` puts the binary in
+`$(go env GOBIN)`, falling back to `$(go env GOPATH)/bin`. If you used
+`go install` and want the Claude skill too, symlink it:
 
 ```sh
 ln -s "$(pwd)/skill/SKILL.md" ~/.claude/skills/ask-gemini/SKILL.md
