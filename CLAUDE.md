@@ -12,8 +12,9 @@ skill (`skill/SKILL.md`) that wraps it.
   `$TMPDIR` and reinstalls binary + skill in place. The binary nudges (stderr,
   once/day) when behind; suppress with `ASK_GEMINI_NO_UPDATE_CHECK=1`.
 - `bin/` — workflow scripts (`smoke-test.sh`, `release.sh`).
-- `Makefile` — `build` (local `./ask-gemini`), `install` (binary to `$GOBIN`
-  or `$GOPATH/bin` + skill to `~/.claude/skills/ask-gemini/`), `test`, `clean`.
+- `Makefile` — `build` (local `./ask-gemini`), `install` (binary to `~/bin`
+  + skill to `~/.claude/skills/ask-gemini/`; override with `BIN_DIR`/`SKILL_DIR`),
+  `test`, `clean`.
   Both build targets inject `main.version` from `git describe`.
 
 ## Testing
