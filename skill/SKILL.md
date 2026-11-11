@@ -1,6 +1,6 @@
 ---
 name: ask-gemini
-description: Get a second opinion from Gemini on thorny problems. Calls the Gemini 4 Argon API with conversation history for multi-turn consults.
+description: Get a second opinion from Gemini on thorny problems (Gemini 4 Argon, with conversation history for multi-turn consults). Also generates images/video, and answers bulk yes/no, multiple-choice or rubric questions about files with calibrated probabilities (`ask-gemini decide`).
 ---
 
 # Ask Gemini — Second Opinion Consult
@@ -15,6 +15,7 @@ Get a second opinion from Google's Gemini 4 Argon on a tricky problem. Useful fo
 - Showing Gemini photos or videos for visual analysis
 - Generating or editing images with Nano Banana (`--out`, see below)
 - Generating short video clips with Gemini Omni (`--out <path>.mp4`)
+- Fast, cheap closed-question checks over files or media (`decide`, see below)
 
 ## CLI
 
