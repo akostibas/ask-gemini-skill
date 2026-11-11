@@ -15,6 +15,10 @@ From a local clone (installs the binary *and* the Claude skill):
 make install
 ```
 
+Prebuilt static binaries (linux/arm64, linux/amd64, darwin/arm64) plus
+`SHA256SUMS` are attached to each [GitHub release](https://github.com/akostibas/ask-gemini-skill/releases),
+for hosts or containers without a Go toolchain.
+
 Or just the binary, from anywhere:
 
 ```sh
