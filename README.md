@@ -132,6 +132,28 @@ ask-gemini --out wave.mp4 --photo fox.png --resolution 720p "the fox waves"
   is about $1. The clip length and estimated cost print to stderr.
 - Each clip is a one-off: `--session` follow-up edits aren't supported yet.
 
+### Quick decisions (`decide`)
+
+For closed questions (yes/no, pick-one, graded rubric), `decide` uses
+`gemini-decision-1` and prints the answers as JSON, each with probabilities and
+a 0–1 confidence:
+
+```sh
+ask-gemini decide --file cam.jpg --yesno 'rat=Is there a rat?' \
+  --choice 'who=Who is visible?:kid,adult,nobody'
+ask-gemini decide --file diff.patch --questions checks.json   # - reads stdin
+```
+
+- Input is any mix of `--file` (image, video, audio, PDF or text) and positional text.
+- `--questions` takes up to 1,000 questions in the
+  [API's format](https://aistudio.google.com/docs/decisions-api), including
+  rubrics and yes/no criteria, which have no flag. Flags merge into it.
+- Keys default to `q1`, `q2`, …; `--resolution low|medium|high|ultra_high` trades
+  image detail for cost.
+- About $0.10 per 1M input tokens and no output charge, so a camera snapshot
+  costs a few thousandths of a cent. It can't answer open-ended questions; use
+  a normal prompt for those.
+
 ## Staying up to date
 
 On a real consult, `ask-gemini` checks GitHub for a newer release — at most once

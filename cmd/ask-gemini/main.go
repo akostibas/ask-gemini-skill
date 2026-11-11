@@ -604,6 +604,9 @@ func resolvePrompt(args []string, stdin io.Reader, stdinPiped bool) (string, err
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "decide" {
+		os.Exit(runDecide(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
+	}
 	model := flag.String("model", defaultModel, "Gemini model ID (see Models below)")
 	reset := flag.Bool("reset", false, "Reset conversation history")
 	system := flag.String("system", "", "System prompt (used on first message or after reset)")
@@ -627,7 +630,8 @@ func main() {
 			"Usage:\n"+
 			"  ask-gemini [flags] <prompt>\n"+
 			"  echo 'prompt' | ask-gemini [flags]\n"+
-			"  echo 'payload' | ask-gemini [flags] <prompt>\n\n"+
+			"  echo 'payload' | ask-gemini [flags] <prompt>\n"+
+			"  ask-gemini decide [flags] ...   (yes/no & multiple-choice answers; see decide --help)\n\n"+
 			"Flags:\n")
 		// flag.PrintDefaults() renders single-dash names (-model); rewrite the
 		// flag-name lines to the double-dash form to match how the flags are

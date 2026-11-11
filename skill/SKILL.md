@@ -47,6 +47,18 @@ Notes on attachments:
 - File API uploads are retained for 48 hours, so a `--session` consult can keep referencing them across turns without re-uploading.
 - Photos and videos can be combined in the same call. Multiple of each are allowed.
 
+### Quick decisions: `ask-gemini decide`
+
+A separate, stateless mode (`gemini-decision-1`) for **closed** questions. It returns probabilities and confidence, never prose, in ~200 ms for roughly $0.10 per 1M input tokens. Reach for it for bulk or mechanical checks: "does any of these 300 files contain a credential?", or grading many items against a rubric. Don't use it for a second opinion, because it can't explain itself.
+
+```bash
+ask-gemini decide --file x.patch --yesno 'secret=Does this add a hard-coded credential?' \
+  --choice 'risk=How risky is this change?:low,medium,high'
+ask-gemini decide --file doc.pdf --questions qs.json   # up to 1,000 questions; - reads stdin
+```
+
+Stdout is the answers JSON keyed by question key (keys default to `q1`, `q2`, …). Questions are evaluated independently and the model never sees the keys, so put the full question in the text. Rubric (`score`) questions and yes/no criteria need `--questions`; see https://aistudio.google.com/docs/decisions-api for the format. Low confidence means the answer is ambiguous, so check it yourself rather than trusting the top pick.
+
 Usage & cost:
 - Every request prints token usage and an estimated cost to **stderr** (stdout stays just the answer). Relay it if the user cares about spend; the cost is an estimate. Set `ASK_GEMINI_NO_USAGE=1` to suppress it.
 

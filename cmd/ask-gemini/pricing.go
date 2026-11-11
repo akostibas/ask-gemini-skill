@@ -36,6 +36,7 @@ var modelPricing = map[string]modelPrice{
 	"gemini-3.6-flash":            {inputPerM: 0.75, outputPerM: 3.75},
 	"gemini-3.5-flash-lite":       {inputPerM: 0.30, outputPerM: 2.50},
 	"gemini-2.5-flash":            {inputPerM: 0.30, outputPerM: 2.50},
+	"gemini-decision-1":           {inputPerM: 0.10}, // no output charge
 	"gemini-nano-banana-2.1":      {inputPerM: 1.50, perImage: 0.0336},
 	"gemini-3-pro-image":          {inputPerM: 2.00, perImage: 0.134},
 	"gemini-3.1-flash-image":      {inputPerM: 0.50, perImage: 0.067},

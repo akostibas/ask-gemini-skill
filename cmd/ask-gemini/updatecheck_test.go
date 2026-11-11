@@ -15,6 +15,7 @@ import (
 // redirects the cache to a fresh temp file. The returned *int counts hits.
 func withMockReleases(t *testing.T, tag string) *int {
 	t.Helper()
+	t.Setenv(suppressUpdateEnv, "") // the dev's shell may set it
 	hits := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hits++
