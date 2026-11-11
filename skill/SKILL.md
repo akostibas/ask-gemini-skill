@@ -1,6 +1,6 @@
 ---
 name: ask-gemini
-description: Get a second opinion from Gemini on thorny problems. Calls the Gemini 4 Argon API with conversation history for multi-turn consults.
+description: Get a second opinion from Gemini on thorny problems (Gemini 4 Argon, with conversation history for multi-turn consults). Also generates images/video, and answers bulk yes/no, multiple-choice or rubric questions about files with calibrated probabilities (`ask-gemini decide`).
 ---
 
 # Ask Gemini — Second Opinion Consult
@@ -15,6 +15,7 @@ Get a second opinion from Google's Gemini 4 Argon on a tricky problem. Useful fo
 - Showing Gemini photos or videos for visual analysis
 - Generating or editing images with Nano Banana (`--out`, see below)
 - Generating short video clips with Gemini Omni (`--out <path>.mp4`)
+- Fast, cheap closed-question checks over files or media (`decide`, see below)
 
 ## CLI
 
@@ -46,6 +47,18 @@ Flags:
 Notes on attachments:
 - File API uploads are retained for 48 hours, so a `--session` consult can keep referencing them across turns without re-uploading.
 - Photos and videos can be combined in the same call. Multiple of each are allowed.
+
+### Quick decisions: `ask-gemini decide`
+
+A separate, stateless mode (`gemini-decision-1`) for **closed** questions. It returns probabilities and confidence, never prose, in ~200 ms for roughly $0.10 per 1M input tokens. Reach for it for bulk or mechanical checks: "does any of these 300 files contain a credential?", or grading many items against a rubric. Don't use it for a second opinion, because it can't explain itself.
+
+```bash
+ask-gemini decide --file x.patch --yesno 'secret=Does this add a hard-coded credential?' \
+  --choice 'risk=How risky is this change?:low,medium,high'
+ask-gemini decide --file doc.pdf --questions qs.json   # up to 1,000 questions; - reads stdin
+```
+
+Stdout is the answers JSON keyed by question key (keys default to `q1`, `q2`, …). Yes/no results include `"answer": "yes"|"no"`; their `confidence` is for that answer, so a confident "no" also has high confidence. Use `noul` as the chance of yes. Questions are evaluated independently and the model never sees the keys, so put the full question in the text. Rubric (`score`) questions and yes/no criteria need `--questions`; see https://aistudio.google.com/docs/decisions-api for the format. Low confidence means the answer is ambiguous, so check it yourself rather than trusting the top pick.
 
 Usage & cost:
 - Every request prints token usage and an estimated cost to **stderr** (stdout stays just the answer). Relay it if the user cares about spend; the cost is an estimate. Set `ASK_GEMINI_NO_USAGE=1` to suppress it.
