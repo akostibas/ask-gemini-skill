@@ -57,7 +57,7 @@ ask-gemini decide --file x.patch --yesno 'secret=Does this add a hard-coded cred
 ask-gemini decide --file doc.pdf --questions qs.json   # up to 1,000 questions; - reads stdin
 ```
 
-Stdout is the answers JSON keyed by question key (keys default to `q1`, `q2`, …). Questions are evaluated independently and the model never sees the keys, so put the full question in the text. Rubric (`score`) questions and yes/no criteria need `--questions`; see https://aistudio.google.com/docs/decisions-api for the format. Low confidence means the answer is ambiguous, so check it yourself rather than trusting the top pick.
+Stdout is the answers JSON keyed by question key (keys default to `q1`, `q2`, …). Yes/no results include `"answer": "yes"|"no"`; their `confidence` is for that answer, so a confident "no" also has high confidence. Use `noul` as the chance of yes. Questions are evaluated independently and the model never sees the keys, so put the full question in the text. Rubric (`score`) questions and yes/no criteria need `--questions`; see https://aistudio.google.com/docs/decisions-api for the format. Low confidence means the answer is ambiguous, so check it yourself rather than trusting the top pick.
 
 Usage & cost:
 - Every request prints token usage and an estimated cost to **stderr** (stdout stays just the answer). Relay it if the user cares about spend; the cost is an estimate. Set `ASK_GEMINI_NO_USAGE=1` to suppress it.

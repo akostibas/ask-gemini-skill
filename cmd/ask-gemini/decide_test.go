@@ -43,6 +43,19 @@ func TestParseFlagQuestions(t *testing.T) {
 	}
 }
 
+func TestLabelAnswers(t *testing.T) {
+	got := string(labelAnswers(json.RawMessage(`{"rat":{"type":"noul","noul":0.15,"confidence":0.85},"who":{"type":"choice","choice":"adult"}}`)))
+	if !strings.Contains(got, `"answer": "no"`) || strings.Count(got, `"answer"`) != 1 {
+		t.Errorf("want answer=no only on the yes/no result, got %s", got)
+	}
+	if strings.Index(got, `"answer"`) > strings.Index(got, `"confidence"`) {
+		t.Errorf("answer should come first: %s", got)
+	}
+	if string(labelAnswers(json.RawMessage(`[1]`))) != `[1]` {
+		t.Error("unexpected shapes should pass through unchanged")
+	}
+}
+
 func TestRunDecide(t *testing.T) {
 	var got decisionRequest
 	status := http.StatusOK
@@ -80,7 +93,7 @@ func TestRunDecide(t *testing.T) {
 		t.Errorf("input: %+v", got.Input)
 	}
 	var answers map[string]map[string]any
-	if err := json.Unmarshal(out.Bytes(), &answers); err != nil || answers["rat"]["noul"] != 0.94 {
+	if err := json.Unmarshal(out.Bytes(), &answers); err != nil || answers["rat"]["noul"] != 0.94 || answers["rat"]["answer"] != "yes" {
 		t.Errorf("stdout should be the answers JSON, got %q", out.String())
 	}
 	if !strings.Contains(errb.String(), "$0.000030") {

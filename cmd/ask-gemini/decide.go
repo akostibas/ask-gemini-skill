@@ -162,6 +162,30 @@ func callDecisions(apiKey string, dr decisionRequest) (*decisionResponse, error)
 	return &r, nil
 }
 
+// labelAnswers adds "answer": "yes"/"no" to yes/no results: their confidence is
+// for whichever side won, so a confident "no" otherwise reads as a likely "yes".
+// Raw bytes come back unchanged if the shape is unexpected.
+func labelAnswers(raw json.RawMessage) []byte {
+	var answers map[string]map[string]any
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	if dec.Decode(&answers) != nil {
+		return raw
+	}
+	for _, a := range answers {
+		if p, ok := a["noul"].(json.Number); ok {
+			if f, err := p.Float64(); err == nil {
+				a["answer"] = map[bool]string{true: "yes", false: "no"}[f >= 0.5]
+			}
+		}
+	}
+	out, err := json.MarshalIndent(answers, "", "  ") // sorted keys: "answer" lands first
+	if err != nil {
+		return raw
+	}
+	return out
+}
+
 // runDecide implements `ask-gemini decide`; returns the process exit code.
 func runDecide(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("decide", flag.ContinueOnError)
@@ -235,12 +259,7 @@ func runDecide(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail(err)
 	}
-	var pretty bytes.Buffer
-	if json.Indent(&pretty, r.Answers, "", "  ") != nil {
-		pretty.Reset()
-		pretty.Write(r.Answers)
-	}
-	fmt.Fprintln(stdout, pretty.String())
+	fmt.Fprintln(stdout, string(labelAnswers(r.Answers)))
 	if os.Getenv("ASK_GEMINI_NO_USAGE") == "" {
 		fmt.Fprintln(stderr, formatUsage(*model, usage{promptTokens: r.Usage.TotalInputTokens, totalTokens: r.Usage.TotalTokens}, 0))
 	}

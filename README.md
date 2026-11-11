@@ -144,6 +144,9 @@ ask-gemini decide --file cam.jpg --yesno 'rat=Is there a rat?' \
 ask-gemini decide --file diff.patch --questions checks.json   # - reads stdin
 ```
 
+- Yes/no results carry `"answer": "yes"|"no"`. `confidence` is for that answer,
+  not for "yes"; `noul` is the chance of yes. Check `answer` plus a confidence
+  threshold.
 - Input is any mix of `--file` (image, video, audio, PDF or text) and positional text.
 - `--questions` takes up to 1,000 questions in the
   [API's format](https://aistudio.google.com/docs/decisions-api), including
