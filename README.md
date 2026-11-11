@@ -1,9 +1,11 @@
 # ask-gemini
 
 A small CLI that asks Google Gemini for a second opinion, with conversation
-history across calls and support for attaching photos, videos, and audio. Ships
-with a [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) skill
-that wraps it.
+history across calls and support for attaching photos, videos, and audio. It
+can also generate images and video, and answer quick yes/no and multiple-choice
+questions for automations. Ships with a
+[Claude Code](https://docs.claude.com/en/docs/claude-code/overview) skill that
+wraps it. What it's for, and what it isn't: [docs/intent.md](docs/intent.md).
 
 ## Setup
 
